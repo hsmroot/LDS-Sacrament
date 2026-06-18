@@ -27,7 +27,6 @@ export default function App() {
   const upcomingSundays = getUpcomingSundays();
   const [selectedDate, setSelectedDate] = useState(upcomingSundays[0]);
 
-  // Updated with Bishop Clarke and Ryan as default leadership entries
   const [leadership, setLeadership] = useState({
     bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
     clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
@@ -46,8 +45,6 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState(null);
 
   // --- Effects ---
-  
-  // 1. Load Tailwind and STRICTLY enforce class-based dark mode
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://cdn.tailwindcss.com';
@@ -57,7 +54,6 @@ export default function App() {
     document.head.appendChild(script);
   }, []);
 
-  // 2. Apply the dark mode class to the root HTML tag
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -66,7 +62,6 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Reset form when clicking a different Sunday
   useEffect(() => {
     setSelectedCoordinatorKey('');
     setDeliverers([{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }]);
@@ -106,7 +101,6 @@ export default function App() {
     });
     const wardInfo = "YSA 2nd Ward (Takapuna)";
 
-    // Gather all the emails we want to send into an array
     const emailsToSend = [];
 
     // 1. Deliverer Emails
@@ -140,7 +134,6 @@ export default function App() {
       });
     }
 
-    // Send the emails to Zapier/Make
     try {
       if (WEBHOOK_URL.includes("YOUR_URL_HERE")) {
         console.log("Emails generated successfully! Add your webhook URL to send them for real.");
@@ -166,28 +159,29 @@ export default function App() {
 
   // --- Render Views ---
   const renderSettings = () => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 animate-fadeIn transition-colors duration-200">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Leadership & Contacts</h2>
+    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 animate-fadeIn transition-colors duration-200">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership & Contacts</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update the contact information for the ward leadership and coordinators. This info will be used for email CCs and contact cards.</p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Coordinators */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Sacrament Coordinators</h3>
           {['coord1', 'coord2'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-colors duration-200">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">NAME</label>
-                <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              {/* Stack vertically on mobile, side-by-side on larger screens */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">EMAIL</label>
-                  <input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                  <input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHONE</label>
-                  <input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                  <input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
                 </div>
               </div>
             </div>
@@ -195,22 +189,22 @@ export default function App() {
         </div>
 
         {/* Bishopric */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Bishopric (CC'd on Emails)</h3>
           {['bishop', 'clerk'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-colors duration-200">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role} NAME</label>
-                <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">EMAIL</label>
-                  <input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                  <input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">PHONE</label>
-                  <input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
+                  <input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200" />
                 </div>
               </div>
             </div>
@@ -252,13 +246,13 @@ export default function App() {
         </div>
 
         {/* Form Area */}
-        <div className="md:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+        <div className="md:col-span-3 bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b dark:border-gray-700 pb-4">
             Assignments for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}
           </h2>
 
           {/* Coordinator Section */}
-          <div className="mb-8 p-5 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/50 transition-colors duration-200">
+          <div className="mb-8 p-4 sm:p-5 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/50 transition-colors duration-200">
             <label className="block text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3">Who is coordinating this week?</label>
             <select
               value={selectedCoordinatorKey}
@@ -271,7 +265,7 @@ export default function App() {
             </select>
             
             {activeCoordinator && (
-              <div className="mt-4 pt-3 border-t border-blue-100 dark:border-blue-900/50 text-sm flex gap-6 text-gray-600 dark:text-gray-300">
+              <div className="mt-4 pt-3 border-t border-blue-100 dark:border-blue-900/50 text-sm flex flex-col sm:flex-row gap-2 sm:gap-6 text-gray-600 dark:text-gray-300">
                 <div><span className="font-semibold text-gray-800 dark:text-gray-100">Email:</span> {activeCoordinator.email}</div>
                 <div><span className="font-semibold text-gray-800 dark:text-gray-100">Phone:</span> {activeCoordinator.phone}</div>
               </div>
@@ -281,28 +275,40 @@ export default function App() {
           {/* Deliverers Section */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Assign Deliverers</label>
-            <div className="space-y-3">
+            <div className="space-y-4 sm:space-y-3">
               {deliverers.map((d, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <span className="text-gray-400 dark:text-gray-500 text-sm w-6 font-bold text-right">#{index + 1}</span>
+                // This wrapper handles the mobile stacking (flex-col) and desktop inline (sm:flex-row)
+                <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-0 bg-gray-50 dark:bg-gray-900/50 sm:bg-transparent rounded-lg border border-gray-100 dark:border-gray-700 sm:border-none relative">
+                  
+                  <span className="text-gray-500 dark:text-gray-400 text-sm font-bold sm:w-6 sm:text-right">
+                    <span className="sm:hidden">Deliverer </span>#{index + 1}
+                  </span>
+                  
                   <input
                     type="text"
                     placeholder="Deliverer Name"
                     value={d.name}
                     onChange={(e) => handleDelivererChange(index, 'name', e.target.value)}
-                    className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-colors duration-200"
+                    className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-colors duration-200"
                   />
                   <input
                     type="email"
                     placeholder="Email Address"
                     value={d.email}
                     onChange={(e) => handleDelivererChange(index, 'email', e.target.value)}
-                    className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-colors duration-200"
+                    className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-colors duration-200"
                   />
+                  
+                  {/* Remove Button - Positioned absolutely on mobile so it stays in the top right corner of the card */}
                   {deliverers.length > 4 ? (
-                    <button onClick={() => removeDelivererSlot(index)} className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg transition-colors">✕</button>
+                    <button 
+                      onClick={() => removeDelivererSlot(index)} 
+                      className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg transition-colors bg-white dark:bg-gray-800 sm:bg-transparent rounded-full shadow-sm sm:shadow-none h-8 w-8 sm:h-auto sm:w-auto flex items-center justify-center"
+                    >
+                      ✕
+                    </button>
                   ) : (
-                    <div className="w-8"></div>
+                    <div className="hidden sm:block w-8"></div>
                   )}
                 </div>
               ))}
@@ -317,16 +323,18 @@ export default function App() {
           </div>
 
           {/* Action Button */}
-          <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <button
               onClick={handleSaveAndSend}
               disabled={isSaving || !selectedCoordinatorKey}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200"
+              className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200"
             >
               {isSaving ? 'Processing...' : 'Save & Send Emails'}
             </button>
             {statusMessage && (
-              <span className="text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-4 py-2 rounded-md transition-colors">{statusMessage}</span>
+              <span className="text-sm font-semibold text-center sm:text-left text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-4 py-3 sm:py-2 rounded-md transition-colors">
+                {statusMessage}
+              </span>
             )}
           </div>
         </div>
@@ -336,26 +344,28 @@ export default function App() {
 
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 font-sans transition-colors duration-200">
+      {/* Reduced base padding on mobile (p-4) vs desktop (sm:p-6) */}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200">
         <div className="max-w-6xl mx-auto">
-          <header className="mb-6 flex items-end justify-between border-b border-gray-200 dark:border-gray-700 pb-4 transition-colors duration-200">
+          {/* Header stacks on mobile, side-by-side on desktop */}
+          <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4 transition-colors duration-200">
             <div>
               <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1>
               <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">YSA 2nd Ward - Takapuna</p>
             </div>
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="px-4 py-2 rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-lg sm:rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm transition-colors flex items-center gap-2"
             >
-              {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+              {isDarkMode ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
             </button>
           </header>
 
-          {/* Navigation Tabs */}
-          <div className="flex gap-2 mb-6">
+          {/* Navigation Tabs - Full width grid on mobile, side-by-side buttons on desktop */}
+          <div className="grid grid-cols-2 sm:flex sm:gap-2 gap-2 mb-6">
             <button 
               onClick={() => setActiveTab('roster')}
-              className={`px-5 py-2.5 font-semibold rounded-lg transition-colors duration-200 ${
+              className={`px-4 sm:px-5 py-3 sm:py-2.5 text-sm sm:text-base font-semibold rounded-lg transition-colors duration-200 ${
                 activeTab === 'roster' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -365,13 +375,13 @@ export default function App() {
             </button>
             <button 
               onClick={() => setActiveTab('settings')}
-              className={`px-5 py-2.5 font-semibold rounded-lg transition-colors duration-200 ${
+              className={`px-4 sm:px-5 py-3 sm:py-2.5 text-sm sm:text-base font-semibold rounded-lg transition-colors duration-200 ${
                 activeTab === 'settings' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
-              Leadership Settings
+              Settings
             </button>
           </div>
 
