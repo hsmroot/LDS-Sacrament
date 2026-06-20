@@ -7,6 +7,7 @@ const getUpcomingSundays = () => {
   const sundays = [];
   const date = new Date();
   
+  // Advance to next Sunday
   date.setDate(date.getDate() + ((7 - date.getDay()) % 7)); 
   
   for (let i = 0; i < 4; i++) {
@@ -27,9 +28,11 @@ export default function App() {
   const upcomingSundays = getUpcomingSundays();
   const [selectedDate, setSelectedDate] = useState(upcomingSundays[0]);
 
+  // Master Leadership & CC Directory
   const [leadership, setLeadership] = useState({
     bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
     clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
+    specialist: { name: 'Your Name (Tech)', email: 'YOUR_EMAIL@gmail.com', phone: '555-0005' },
     coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
     coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
   });
@@ -95,7 +98,6 @@ export default function App() {
     setIsSaving(true);
     setStatusMessage(null);
 
-    // Your actual live Make.com Webhook URL
     const WEBHOOK_URL = "https://hook.us2.make.com/fif1k4koecfx50ulob7h8b9d5lp5a33v";
 
     const activeCoordinator = leadership[selectedCoordinatorKey];
@@ -218,14 +220,21 @@ export default function App() {
       }
     });
 
-    // 5. Bishopric Summary HTML
+    // 5. Master Leadership Summary HTML (With multi-person CC)
     const renderHtmlList = (arr) => arr.length > 0 
       ? arr.map(d => `<li style="margin-bottom: 4px;"><strong>${d.name || 'Unknown'}</strong> &nbsp;<span style="color:#666;">(<a href="mailto:${d.email || ''}" style="color:#2563eb;">${d.email || 'No Email'}</a>)</span></li>`).join('')
       : `<li><em style="color:#999;">None assigned</em></li>`;
 
+    // Safely combine Clerk, Specialist (You), and Moroni into a comma-separated CC string
+    const masterCcString = [
+      leadership.clerk.email,
+      leadership.specialist.email,
+      leadership.coord1.email
+    ].map(e => e?.trim()).filter(Boolean).join(', ');
+
     emailsToSend.push({
       to: leadership.bishop.email,
-      cc: leadership.clerk.email,
+      cc: masterCcString,
       subject: `Roster Finalized: ${wardInfo} Sacrament - ${formattedDate}`,
       body: `
         <div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">
@@ -244,7 +253,9 @@ export default function App() {
           <h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4>
           <ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul>
 
-          <p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-t border-gray-200 pt-4;">Automated calendar instructions and arrival reminders have been dispatched to all participants listed above.</p>
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+            Automated calendar instructions and arrival reminders have been dispatched to all individual participants listed above.
+          </p>
         </div>
       `
     });
@@ -335,9 +346,11 @@ export default function App() {
 
   // --- Render Views ---
   const renderSettings = () => (
-    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 animate-fadeIn transition-colors duration-200">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership & Contacts</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update the contact information for the ward leadership and coordinators. This info will be used for email CCs and contact cards.</p>
+    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership & CC Directory</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        Update the contact information for the ward leadership and tech support. The Bishopric, Clerk, Specialist, and Moroni will automatically receive a master copy of the finalized roster via CC.
+      </p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4 sm:space-y-6">
@@ -345,7 +358,9 @@ export default function App() {
           {['coord1', 'coord2'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-colors duration-200">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">NAME</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  {role === 'coord1' ? 'COORDINATOR 1 (MORONI)' : 'COORDINATOR 2 (HARI)'} NAME
+                </label>
                 <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-colors duration-200" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2">
@@ -363,11 +378,13 @@ export default function App() {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Bishopric (CC'd on Emails)</h3>
-          {['bishop', 'clerk'].map(role => (
+          <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Leadership & Administration (CC Group)</h3>
+          {['bishop', 'clerk', 'specialist'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm transition-colors duration-200">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role} NAME</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                  {role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role} NAME
+                </label>
                 <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-colors duration-200" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2">
