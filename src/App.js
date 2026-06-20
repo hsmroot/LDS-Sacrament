@@ -92,7 +92,10 @@ export default function App() {
     if (list.length <= minLength) return;
     setter(list.filter((_, i) => i !== index));
   };
-
+// Add this helper function at the top of handleSaveAndSend
+const isValidEmail = (email) => {
+  return typeof email === 'string' && email.trim().includes('@') && email.trim().includes('.');
+};
   // --- LIVE MAKE.COM HTML DISPATCH ENGINE ---
   const handleSaveAndSend = async () => {
     setIsSaving(true);
@@ -106,12 +109,52 @@ export default function App() {
     });
     const wardInfo = "YSA 2nd Ward (Takapuna)";
 
-    const validPreparers = preparers.filter(d => d.name.trim() !== '' || d.email.trim() !== '');
-    const validAdmins = administrators.filter(d => d.name.trim() !== '' || d.email.trim() !== '');
-    const validDeliverers = deliverers.filter(d => d.name.trim() !== '' || d.email.trim() !== '');
+    const validPreparers = preparers.filter(d => d.name.trim() !== '' || d.email.trim() !== '')
+      if (isValidEmail(person.email)) {
+  emailsToSend.push({
+    to: person.email.trim(),
+    cc: "",
+    subject: `...`,
+    body: `...`
+  });
+} else {
+  console.warn(`Skipping invalid email for: ${person.name}`);
+};
+    const validAdmins = administrators.filter(d => d.name.trim() !== '' || d.email.trim() !== '')
+      if (isValidEmail(person.email)) {
+  emailsToSend.push({
+    to: person.email.trim(),
+    cc: "",
+    subject: `...`,
+    body: `...`
+  });
+} else {
+  console.warn(`Skipping invalid email for: ${person.name}`);
+};
+    const validDeliverers = deliverers.filter(d => d.name.trim() !== '' || d.email.trim() !== '')
+      if (isValidEmail(person.email)) {
+  emailsToSend.push({
+    to: person.email.trim(),
+    cc: "",
+    subject: `...`,
+    body: `...`
+  });
+} else {
+  console.warn(`Skipping invalid email for: ${person.name}`);
+};
     const validCleanup = cleanup.filter(d => d.name.trim() !== '' || d.email.trim() !== '');
 
-    const emailsToSend = [];
+    const emailsToSend = []
+      if (isValidEmail(person.email)) {
+  emailsToSend.push({
+    to: person.email.trim(),
+    cc: "",
+    subject: `...`,
+    body: `...`
+  });
+} else {
+  console.warn(`Skipping invalid email for: ${person.name}`);
+};
     
     // Reusable HTML Footer
     const htmlFooter = `
