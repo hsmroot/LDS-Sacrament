@@ -110,7 +110,7 @@ export default function App() {
     setStatusMessage(null);
 
     // Make sure this matches your active Lightning-Bolt Webhook URL:
-    const WEBHOOK_URL = "https://hook.us2.make.com/fif1k4koecfx50ulob7h8b9d5lp5a33v";
+    const WEBHOOK_URL = "https://hook.us2.make.com/mfbefy26o7uiwavlxg5et84b512b4agl";
 
     const activeCoordinator = leadership[selectedCoordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
