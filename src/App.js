@@ -53,10 +53,12 @@ export default function App() {
 
   const [selectedCoordinatorKey, setSelectedCoordinatorKey] = useState('');
   
+  // --- ASSIGNMENT LIST STATES ---
   const [preparers, setPreparers] = useState([{ name: '', email: '' }, { name: '', email: '' }]); 
   const [administrators, setAdministrators] = useState([{ name: '', email: '' }, { name: '', email: '' }]); 
   const [deliverers, setDeliverers] = useState([{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }]); 
   const [cleanup, setCleanup] = useState([{ name: '', email: '' }, { name: '', email: '' }]); 
+  const [breadProviders, setBreadProviders] = useState([{ name: '', email: '' }]); // New Bread Provider state
 
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -72,12 +74,14 @@ export default function App() {
     isDarkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
+  // Reset all fields when a new date is selected
   useEffect(() => {
     setSelectedCoordinatorKey('');
     setPreparers([{ name: '', email: '' }, { name: '', email: '' }]);
     setAdministrators([{ name: '', email: '' }, { name: '', email: '' }]);
     setDeliverers([{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }]);
     setCleanup([{ name: '', email: '' }, { name: '', email: '' }]);
+    setBreadProviders([{ name: '', email: '' }]);
     setStatusMessage(null);
   }, [selectedDate]);
 
@@ -107,10 +111,12 @@ export default function App() {
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
     const wardInfo = "YSA 2nd Ward (Takapuna)";
 
+    // Harvest verified emails
     const validPreparers = preparers.filter(d => isValidEmail(d.email));
     const validAdmins = administrators.filter(d => isValidEmail(d.email));
     const validDeliverers = deliverers.filter(d => isValidEmail(d.email));
     const validCleanup = cleanup.filter(d => isValidEmail(d.email));
+    const validBreadProviders = breadProviders.filter(d => isValidEmail(d.email));
 
     const emailsToSend = [];
     
@@ -126,11 +132,13 @@ export default function App() {
       </p>
     `;
 
+    // 1-5. Push Individual Participant Reminders (Includes Bread Provider)
     const assignmentBatches = [
       { type: 'Preparation', list: validPreparers, sub: 'Sacrament setup', timeNote: 'Please arrive at least 20 minutes before the meeting begins to set up trays.' },
       { type: 'Administration', list: validAdmins, sub: 'Sacrament blessing', timeNote: 'Please ensure you are seated on the stand at least 15 minutes before the meeting begins.' },
       { type: 'Delivery', list: validDeliverers, sub: 'Sacrament passing', timeNote: 'Please ensure you are seated near the front at least 15 minutes before the sacrament begins.' },
-      { type: 'Clean-up', list: validCleanup, sub: 'Sacrament clean-up', timeNote: 'Immediately following the conclusion of the meeting, please return to the room to clear trays.' }
+      { type: 'Clean-up', list: validCleanup, sub: 'Sacrament clean-up', timeNote: 'Immediately following the conclusion of the meeting, please return to the room to clear trays.' },
+      { type: 'Bread Provision', list: validBreadProviders, sub: 'Sacrament bread supply', timeNote: 'Please bring fresh white bread and deliver it to the prep room at least 20 minutes before the meeting begins.' }
     ];
 
     assignmentBatches.forEach(batch => {
@@ -138,16 +146,17 @@ export default function App() {
         emailsToSend.push({
           to: person.email.trim().toLowerCase(),
           subject: `${batch.sub} schedule for ${formattedDate} (${wardInfo})`,
-          body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${person.name || 'Brother'},</p><p style="font-size: 16px; line-height: 1.5;">You have been assigned to <strong>${batch.type.toUpperCase()}</strong> the sacrament this coming Sunday, <strong>${formattedDate}</strong>, for the ${wardInfo}.</p><div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0;"><p style="margin: 0; color: #92400e; font-size: 14px;"><strong>⏰ Arrival Note:</strong> ${batch.timeNote}</p></div><p style="font-size: 15px;">Thank you for your service!</p>${htmlFooter}</div>`
+          body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${person.name || 'Brother/Sister'},</p><p style="font-size: 16px; line-height: 1.5;">You have been assigned to <strong>${batch.type.toUpperCase()}</strong> for the sacrament this coming Sunday, <strong>${formattedDate}</strong>, for the ${wardInfo}.</p><div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0;"><p style="margin: 0; color: #92400e; font-size: 14px;"><strong>⏰ Duty Note:</strong> ${batch.timeNote}</p></div><p style="font-size: 15px;">Thank you for your service!</p>${htmlFooter}</div>`
         });
       });
     });
 
+    // 6. MASTER SUMMARY LOOP (Sanitized & Deduplicated Direct Copies)
     const renderHtmlList = (arr) => arr.length > 0 
       ? arr.map(d => `<li style="margin-bottom: 4px;"><strong>${d.name || 'Unknown'}</strong> &nbsp;<span style="color:#666;">(<a href="mailto:${d.email || ''}" style="color:#2563eb;">${d.email || 'No Email'}</a>)</span></li>`).join('')
       : `<li><em style="color:#999;">None assigned</em></li>`;
 
-    const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
+    const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">5. Bread Provider</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validBreadProviders)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
 
     const digestRecipients = [
       leadership.bishop?.email,
@@ -165,6 +174,15 @@ export default function App() {
         body: summaryHtmlBody
       });
     });
+
+    // 7. Coordinator Confirmation HTML
+    if (isValidEmail(activeCoordinator?.email)) {
+      emailsToSend.push({
+        to: activeCoordinator.email.trim().toLowerCase(),
+        subject: `Confirmation: Full Roster Dispatched - ${formattedDate}`,
+        body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${activeCoordinator.name},</p><p style="font-size: 16px; line-height: 1.5;">Thank you for organizing the roster. All verified sacrament assignments (Preparation, Administration, Delivery, Clean-up, and Bread Provision) for the <strong>${wardInfo}</strong> have been successfully transmitted to your participants, and the Bishopric has been notified.</p></div>`
+      });
+    }
 
     let successCount = 0;
     try {
@@ -234,7 +252,6 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
-        {/* Soft Ambient Corner Glows */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -314,7 +331,7 @@ export default function App() {
           {activeTab === 'roster' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit"><h2 className="font-semibold text-gray-700 dark:text-gray-300 mb-3 text-sm uppercase tracking-wider">Upcoming Sundays</h2><div className="space-y-2">{upcomingSundays.map(dateStr => (<button key={dateStr} onClick={() => setSelectedDate(dateStr)} className={`w-full text-left p-3 rounded-lg font-medium cursor-pointer ${selectedDate === dateStr ? 'bg-blue-600 text-white font-bold shadow-md' : 'bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300'}`}>{new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</button>))}</div></div>
-              <div className="md:col-span-3 bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"><h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b dark:border-gray-700 pb-4">Assignments for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</h2><div className="mb-8 p-4 sm:p-5 bg-blue-50/60 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/50"><label className="block text-sm font-semibold text-blue-950 dark:text-blue-300 mb-3">Who is coordinating?</label><select value={selectedCoordinatorKey} onChange={e => setSelectedCoordinatorKey(e.target.value)} className="w-full max-w-md p-2.5 border border-blue-200 dark:border-blue-800 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"><option value="">Select Coordinator...</option><option value="coord1">{leadership.coord1.name}</option><option value="coord2">{leadership.coord2.name}</option></select></div>{renderAssignmentSection("1. Sacrament Preparers", "Arrive 20 mins early.", preparers, setPreparers, 2)}{renderAssignmentSection("2. Sacrament Administrators", "Seated on stand 15 mins early.", administrators, setAdministrators, 2)}{renderAssignmentSection("3. Sacrament Deliverers", "Seated at front 15 mins early.", deliverers, setDeliverers, 4)}{renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", cleanup, setCleanup, 2)}<div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"><button onClick={handleSaveAndSend} disabled={isSaving || !selectedCoordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting to Make.com...' : 'Save & Dispatch All Notifications'}</button>{statusMessage && <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{statusMessage}</span>}</div></div>
+              <div className="md:col-span-3 bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700"><h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b dark:border-gray-700 pb-4">Assignments for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</h2><div className="mb-8 p-4 sm:p-5 bg-blue-50/60 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/50"><label className="block text-sm font-semibold text-blue-950 dark:text-blue-300 mb-3">Who is coordinating?</label><select value={selectedCoordinatorKey} onChange={e => setSelectedCoordinatorKey(e.target.value)} className="w-full max-w-md p-2.5 border border-blue-200 dark:border-blue-800 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"><option value="">Select Coordinator...</option><option value="coord1">{leadership.coord1.name}</option><option value="coord2">{leadership.coord2.name}</option></select></div>{renderAssignmentSection("1. Sacrament Preparers", "Arrive 20 mins early.", preparers, setPreparers, 2)}{renderAssignmentSection("2. Sacrament Administrators", "Seated on stand 15 mins early.", administrators, setAdministrators, 2)}{renderAssignmentSection("3. Sacrament Deliverers", "Seated at front 15 mins early.", deliverers, setDeliverers, 4)}{renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", cleanup, setCleanup, 2)}{renderAssignmentSection("5. Bread Providers", "Bring fresh bread 20 mins early.", breadProviders, setBreadProviders, 1)}<div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"><button onClick={handleSaveAndSend} disabled={isSaving || !selectedCoordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting to Make.com...' : 'Save & Dispatch All Notifications'}</button>{statusMessage && <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{statusMessage}</span>}</div></div>
             </div>
           ) : renderSettings()}
         </div>
