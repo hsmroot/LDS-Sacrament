@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * SACRAMENT ROSTER MANAGEMENT PORTAL
+ * ============================================================================
+ * Author: Harisankar Menon
+ * Contact: harisankarmenon@protonmail.ch
+ * Organization: YSA 2nd Ward, Takapuna (9 Taharoto Road, Auckland)
+ * 
+ * OPEN SOURCE SOFTWARE LICENSES USED:
+ * - React (v18+) — Licensed under the MIT License (Copyright © Meta Platforms, Inc.)
+ * - Tailwind CSS — Licensed under the MIT License (Copyright © Tailwind Labs, Inc.)
+ * - DOM/UI Icons — Standard Native Unicode Emoji Specification (ISO/IEC 10646)
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 
 // ==========================================
@@ -46,7 +61,7 @@ export default function App() {
   const [leadership, setLeadership] = useState({
     bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
     clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
-    specialist: { name: 'Tech Specialist (You)', email: 'hmenon134@gmail.com', phone: '555-0005' },
+    specialist: { name: 'Tech Specialist (You)', email: 'harisankarmenon@protonmail.ch', phone: '555-0005' },
     coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
     coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
   });
@@ -274,38 +289,67 @@ export default function App() {
   };
 
   const renderSettings = () => (
-    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership Directory</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update contact info. The Bishopric, Clerk, Specialist, and active Coordinator automatically receive a full copy of the roster directly to their inbox.</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-4 sm:space-y-6">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Sacrament Coordinators</h3>
-          {['coord1', 'coord2'].map(role => (
-            <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{role === 'coord1' ? 'COORDINATOR 1 (MORONI)' : 'COORDINATOR 2 (HARI)'} NAME</label>
-              <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
-            </div>
-          ))}
+    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200 space-y-8">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership Directory</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update contact info. The Bishopric, Clerk, Specialist, and active Coordinator automatically receive a full copy of the roster directly to their inbox.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4 sm:space-y-6">
+            <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Sacrament Coordinators</h3>
+            {['coord1', 'coord2'].map(role => (
+              <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{role === 'coord1' ? 'COORDINATOR 1 (MORONI)' : 'COORDINATOR 2 (HARI)'} NAME</label>
+                <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4 sm:space-y-6">
+            <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Leadership & Administration</h3>
+            {['bishop', 'clerk', 'specialist'].map(role => (
+              <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role} NAME</label>
+                <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="space-y-4 sm:space-y-6">
-          <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Leadership & Administration</h3>
-          {['bishop', 'clerk', 'specialist'].map(role => (
-            <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role} NAME</label>
-              <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
-            </div>
-          ))}
+      </div>
+
+      {/* AUTHOR & LICENSING METADATA BLOCK */}
+      <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <span>📜</span> Software Attribution & Open Source Licenses
+        </h3>
+        <div className="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-xl border border-gray-200/80 dark:border-gray-700 text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-4 shadow-inner">
+          <div>
+            <span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1">Lead Developer & Author</span>
+            <p className="font-medium">Harisankar Menon &bull; <a href="mailto:harisankarmenon@protonmail.ch" className="text-blue-600 dark:text-blue-400 hover:underline">harisankarmenon@protonmail.ch</a></p>
+          </div>
+          <div>
+            <span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1.5">Third-Party Licenses</span>
+            <ul className="list-disc pl-5 space-y-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+              <li><strong className="text-gray-700 dark:text-gray-300">React</strong> — MIT License (Copyright &copy; Meta Platforms, Inc. and affiliates)</li>
+              <li><strong className="text-gray-700 dark:text-gray-300">Tailwind CSS</strong> — MIT License (Copyright &copy; Tailwind Labs, Inc.)</li>
+              <li><strong className="text-gray-700 dark:text-gray-300">Native Emoji Typography</strong> — Standard Unicode Standard (ISO/IEC 10646)</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
   );
 
+  // ==========================================
+  // 3. GATE 1: PRE-RENDER CLOAK (Prevents FOUC)
+  // ==========================================
   if (!isStyleEngineReady) {
     return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
   }
 
+  // ==========================================
+  // 4. GATE 2: SECURITY GATEWAY RENDERER
+  // ==========================================
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
@@ -367,10 +411,13 @@ export default function App() {
     );
   }
 
+  // ==========================================
+  // 5. GATE 3: MAIN APP RENDERER
+  // ==========================================
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200 flex flex-col justify-between">
+        <div className="max-w-6xl mx-auto w-full">
           <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
             <div>
               <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1>
@@ -408,6 +455,12 @@ export default function App() {
             </div>
           ) : renderSettings()}
         </div>
+
+        {/* GLOBAL APPLICATION FOOTER */}
+        <footer className="mt-16 pt-6 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-400 dark:text-gray-500 space-y-1 select-none">
+          <p>Created by Harisankar Menon &bull; <a href="mailto:harisankarmenon@protonmail.ch" className="hover:underline">harisankarmenon@protonmail.ch</a></p>
+          <p>Built with React &amp; Tailwind CSS (MIT Licensed) &bull; Chapel: 9 Taharoto Road, Auckland</p>
+        </footer>
       </div>
     </div>
   );
