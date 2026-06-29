@@ -86,7 +86,7 @@ export default function App() {
     setStatusMessage(null);
 
     // ⚠️ PASTE YOUR COPIED "https://hook.us2.make.com/mfbefy..." URL DIRECTLY BELOW:
-    const WEBHOOK_URL = "https://hook.us2.make.com/mfbefy26o7uiwavlxg_PASTE_YOUR_FULL_KEY_HERE";
+  const WEBHOOK_URL = "https://hook.us2.make.com/your_fresh_copied_url_here";
 
     const activeCoordinator = leadership[selectedCoordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
