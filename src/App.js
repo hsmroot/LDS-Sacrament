@@ -40,7 +40,7 @@ export default function App() {
   const [leadership, setLeadership] = useState({
     bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
     clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
-    specialist: { name: 'Tech Specialist (You)', email: 'YOUR_EMAIL@gmail.com', phone: '555-0005' },
+    specialist: { name: 'Tech Specialist (You)', email: 'hmenon134@gmail.com', phone: '555-0005' },
     coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
     coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
   });
@@ -85,14 +85,12 @@ export default function App() {
     setIsSaving(true);
     setStatusMessage(null);
 
-    // ⚠️ PASTE YOUR COPIED "https://hook.us2.make.com/mfbefy..." URL DIRECTLY BELOW:
-  const WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt";
+    const WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt";
 
     const activeCoordinator = leadership[selectedCoordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
     const wardInfo = "YSA 2nd Ward (Takapuna)";
 
-    // Pre-flight check: Only harvest fields containing true email strings
     const validPreparers = preparers.filter(d => isValidEmail(d.email));
     const validAdmins = administrators.filter(d => isValidEmail(d.email));
     const validDeliverers = deliverers.filter(d => isValidEmail(d.email));
@@ -100,7 +98,6 @@ export default function App() {
 
     const emailsToSend = [];
     
-    // Decoy invisible snippet to generate beautiful Outlook/Gmail inbox preview text
     const htmlPreHeader = `<span style="display:none;font-size:1px;color:#ffffff;max-height:0px;opacity:0;">Sacrament duty update and schedule confirmation for this Sunday meeting.</span>`;
 
     const htmlFooter = `
@@ -113,7 +110,7 @@ export default function App() {
       </p>
     `;
 
-    // 1-4. Push Individual Participant Reminders (No CC parameter attached)
+    // 1-4. Push Individual Participant Reminders (Strictly no CC attached)
     const assignmentBatches = [
       { type: 'Preparation', list: validPreparers, sub: 'Sacrament setup', timeNote: 'Please arrive at least 20 minutes before the meeting begins to set up trays.' },
       { type: 'Administration', list: validAdmins, sub: 'Sacrament blessing', timeNote: 'Please ensure you are seated on the stand at least 15 minutes before the meeting begins.' },
@@ -131,14 +128,13 @@ export default function App() {
       });
     });
 
-    // 5. MASTER SUMMARY LOOP (Deploys master copy directly to each leader's inbox)
+    // 5. MASTER SUMMARY LOOP (Sends master copy directly to each leader's 'To:' inbox)
     const renderHtmlList = (arr) => arr.length > 0 
       ? arr.map(d => `<li style="margin-bottom: 4px;"><strong>${d.name || 'Unknown'}</strong> &nbsp;<span style="color:#666;">(<a href="mailto:${d.email || ''}" style="color:#2563eb;">${d.email || 'No Email'}</a>)</span></li>`).join('')
       : `<li><em style="color:#999;">None assigned</em></li>`;
 
     const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
 
-    // Harvest unique leadership emails cleanly
     const digestRecipients = [
       leadership.bishop?.email,
       leadership.clerk?.email,
@@ -156,7 +152,15 @@ export default function App() {
       });
     });
 
-    // Fire HTTP POST packets to Make.com
+    // 6. Coordinator Confirmation HTML
+    if (isValidEmail(activeCoordinator?.email)) {
+      emailsToSend.push({
+        to: activeCoordinator.email.trim(),
+        subject: `Confirmation: Full Roster Dispatched - ${formattedDate}`,
+        body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${activeCoordinator.name},</p><p style="font-size: 16px; line-height: 1.5;">Thank you for organizing the roster. All verified sacrament assignments (Preparation, Administration, Delivery, and Clean-up) for the <strong>${wardInfo}</strong> have been successfully transmitted to your participants, and the Bishopric has been notified.</p></div>`
+      });
+    }
+
     let successCount = 0;
     try {
       for (const emailData of emailsToSend) {
