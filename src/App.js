@@ -30,6 +30,9 @@ const getUpcomingSundays = () => {
 // 2. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
+  // --- RENDERING CLOAK STATE ---
+  const [isStyleEngineReady, setIsStyleEngineReady] = useState(false);
+
   // --- AUTHENTICATION STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authUsername, setAuthUsername] = useState('');
@@ -70,16 +73,24 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
-  // Active desk folder pointers
   const currentRoster = rosterLedger[selectedDate] || {
     coordinatorKey: '',
     preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: []
   };
 
+  // Tailwind Injection Engine with Cloak Handshake
   useEffect(() => {
+    if (window.tailwind) {
+      setIsStyleEngineReady(true);
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://cdn.tailwindcss.com';
-    script.onload = () => window.tailwind.config = { darkMode: 'class' };
+    script.onload = () => {
+      window.tailwind.config = { darkMode: 'class' };
+      setIsStyleEngineReady(true); // Drop the cloak
+    };
     document.head.appendChild(script);
   }, []);
 
@@ -87,7 +98,6 @@ export default function App() {
     isDarkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
-  // Wipe toast notifications when jumping tabs so users aren't confused
   useEffect(() => {
     setStatusMessage(null);
   }, [selectedDate]);
@@ -104,7 +114,6 @@ export default function App() {
 
   const handleLeadershipChange = (role, field, value) => setLeadership(prev => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
 
-  // Master Ledger State Updaters
   const handleCoordinatorSelect = (key) => {
     setRosterLedger(prev => ({ ...prev, [selectedDate]: { ...prev[selectedDate], coordinatorKey: key } }));
   };
@@ -280,7 +289,14 @@ export default function App() {
   );
 
   // ==========================================
-  // 3. SECURITY GATEWAY RENDERER
+  // 3. GATE 1: PRE-RENDER CLOAK (Prevents FOUC)
+  // ==========================================
+  if (!isStyleEngineReady) {
+    return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
+  }
+
+  // ==========================================
+  // 4. GATE 2: SECURITY GATEWAY RENDERER
   // ==========================================
   if (!isAuthenticated) {
     return (
@@ -344,7 +360,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 4. MAIN APP RENDERER
+  // 5. GATE 3: MAIN APP RENDERER
   // ==========================================
   return (
     <div className={isDarkMode ? 'dark' : ''}>
@@ -380,14 +396,4 @@ export default function App() {
                 {renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", "cleanup", 2)}
                 {renderAssignmentSection("5. Bread Providers", "Bring fresh bread 20 mins early.", "breadProviders", 1)}
                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting to Make.com...' : 'Save & Dispatch All Notifications'}</button>
-                  {statusMessage && <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{statusMessage}</span>}
-                </div>
-              </div>
-            </div>
-          ) : renderSettings()}
-        </div>
-      </div>
-    </div>
-  );
-}
+                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8
