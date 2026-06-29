@@ -30,16 +30,13 @@ const getUpcomingSundays = () => {
 // 2. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
-  // --- RENDERING CLOAK STATE ---
   const [isStyleEngineReady, setIsStyleEngineReady] = useState(false);
 
-  // --- AUTHENTICATION STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState(false);
 
-  // --- APP DASHBOARD STATE ---
   const [activeTab, setActiveTab] = useState('roster');
   const [isDarkMode, setIsDarkMode] = useState(false);
   
@@ -54,7 +51,6 @@ export default function App() {
     coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
   });
 
-  // --- MASTER FILING CABINET (PERSISTENT MEMORY) ---
   const [rosterLedger, setRosterLedger] = useState(() => {
     const initialLedger = {};
     upcomingSundays.forEach(dateStr => {
@@ -78,7 +74,6 @@ export default function App() {
     preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: []
   };
 
-  // Tailwind Injection Engine with Cloak Handshake
   useEffect(() => {
     if (window.tailwind) {
       setIsStyleEngineReady(true);
@@ -87,15 +82,25 @@ export default function App() {
 
     const script = document.createElement('script');
     script.src = 'https://cdn.tailwindcss.com';
+    script.async = true;
     script.onload = () => {
-      window.tailwind.config = { darkMode: 'class' };
-      setIsStyleEngineReady(true); // Drop the cloak
+      if (window.tailwind) {
+        window.tailwind.config = { darkMode: 'class' };
+      }
+      setIsStyleEngineReady(true);
+    };
+    script.onerror = () => {
+      setIsStyleEngineReady(true);
     };
     document.head.appendChild(script);
   }, []);
 
   useEffect(() => {
-    isDarkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [isDarkMode]);
 
   useEffect(() => {
@@ -112,16 +117,21 @@ export default function App() {
     }
   };
 
-  const handleLeadershipChange = (role, field, value) => setLeadership(prev => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
+  const handleLeadershipChange = (role, field, value) => {
+    setLeadership(prev => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
+  };
 
   const handleCoordinatorSelect = (key) => {
-    setRosterLedger(prev => ({ ...prev, [selectedDate]: { ...prev[selectedDate], coordinatorKey: key } }));
+    setRosterLedger(prev => ({
+      ...prev,
+      [selectedDate]: { ...prev[selectedDate], coordinatorKey: key }
+    }));
   };
 
   const handleSlotChange = (category, index, field, value) => {
     setRosterLedger(prev => {
-      const dayData = prev[selectedDate];
-      const updatedList = [...dayData[category]];
+      const dayData = prev[selectedDate] || { preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: [] };
+      const updatedList = [...(dayData[category] || [])];
       updatedList[index] = { ...updatedList[index], [field]: value };
       return { ...prev, [selectedDate]: { ...dayData, [category]: updatedList } };
     });
@@ -129,15 +139,19 @@ export default function App() {
 
   const addSlot = (category) => {
     setRosterLedger(prev => {
-      const dayData = prev[selectedDate];
-      return { ...prev, [selectedDate]: { ...dayData, [category]: [...dayData[category], { name: '', email: '' }] } };
+      const dayData = prev[selectedDate] || { preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: [] };
+      const currentList = dayData[category] || [];
+      return {
+        ...prev,
+        [selectedDate]: { ...dayData, [category]: [...currentList, { name: '', email: '' }] }
+      };
     });
   };
 
   const removeSlot = (category, index, minLength) => {
     setRosterLedger(prev => {
       const dayData = prev[selectedDate];
-      if (dayData[category].length <= minLength) return prev;
+      if (!dayData || !dayData[category] || dayData[category].length <= minLength) return prev;
       const filtered = dayData[category].filter((_, i) => i !== index);
       return { ...prev, [selectedDate]: { ...dayData, [category]: filtered } };
     });
@@ -154,11 +168,11 @@ export default function App() {
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
     const wardInfo = "YSA 2nd Ward (Takapuna)";
 
-    const validPreparers = currentRoster.preparers.filter(d => isValidEmail(d.email));
-    const validAdmins = currentRoster.administrators.filter(d => isValidEmail(d.email));
-    const validDeliverers = currentRoster.deliverers.filter(d => isValidEmail(d.email));
-    const validCleanup = currentRoster.cleanup.filter(d => isValidEmail(d.email));
-    const validBreadProviders = currentRoster.breadProviders.filter(d => isValidEmail(d.email));
+    const validPreparers = (currentRoster.preparers || []).filter(d => isValidEmail(d.email));
+    const validAdmins = (currentRoster.administrators || []).filter(d => isValidEmail(d.email));
+    const validDeliverers = (currentRoster.deliverers || []).filter(d => isValidEmail(d.email));
+    const validCleanup = (currentRoster.cleanup || []).filter(d => isValidEmail(d.email));
+    const validBreadProviders = (currentRoster.breadProviders || []).filter(d => isValidEmail(d.email));
 
     const emailsToSend = [];
     
@@ -248,8 +262,8 @@ export default function App() {
           {list.map((d, index) => (
             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-0 bg-white dark:bg-gray-800 sm:bg-transparent rounded-lg border border-gray-200/60 dark:border-gray-700 sm:border-none relative shadow-sm sm:shadow-none">
               <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-bold sm:w-8 sm:text-right"><span className="sm:hidden">Spot </span>#{index + 1}</span>
-              <input type="text" placeholder="Name" value={d.name} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-              <input type="email" placeholder="Email Address" value={d.email} onChange={e => handleSlotChange(categoryKey, index, 'email', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              <input type="text" placeholder="Name" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              <input type="email" placeholder="Email Address" value={d.email || ''} onChange={e => handleSlotChange(categoryKey, index, 'email', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               {list.length > defaultLength ? <button onClick={() => removeSlot(categoryKey, index, defaultLength)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg bg-gray-50 dark:bg-gray-700 sm:bg-transparent rounded-full h-7 w-7 sm:h-auto sm:w-auto flex items-center justify-center cursor-pointer">✕</button> : <div className="hidden sm:block w-7"></div>}
             </div>
           ))}
@@ -269,8 +283,8 @@ export default function App() {
           {['coord1', 'coord2'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{role === 'coord1' ? 'COORDINATOR 1 (MORONI)' : 'COORDINATOR 2 (HARI)'} NAME</label>
-              <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
             </div>
           ))}
         </div>
@@ -279,8 +293,8 @@ export default function App() {
           {['bishop', 'clerk', 'specialist'].map(role => (
             <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
               <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role} NAME</label>
-              <input value={leadership[role].name} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role].email} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role].phone} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
+              <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
             </div>
           ))}
         </div>
@@ -288,16 +302,10 @@ export default function App() {
     </div>
   );
 
-  // ==========================================
-  // 3. GATE 1: PRE-RENDER CLOAK (Prevents FOUC)
-  // ==========================================
   if (!isStyleEngineReady) {
     return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
   }
 
-  // ==========================================
-  // 4. GATE 2: SECURITY GATEWAY RENDERER
-  // ==========================================
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
@@ -359,9 +367,6 @@ export default function App() {
     );
   }
 
-  // ==========================================
-  // 5. GATE 3: MAIN APP RENDERER
-  // ==========================================
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200">
@@ -384,7 +389,7 @@ export default function App() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 border-b dark:border-gray-700 pb-4">Assignments for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</h2>
                 <div className="mb-8 p-4 sm:p-5 bg-blue-50/60 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/50">
                   <label className="block text-sm font-semibold text-blue-950 dark:text-blue-300 mb-3">Who is coordinating?</label>
-                  <select value={currentRoster.coordinatorKey} onChange={e => handleCoordinatorSelect(e.target.value)} className="w-full max-w-md p-2.5 border border-blue-200 dark:border-blue-800 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                  <select value={currentRoster.coordinatorKey || ''} onChange={e => handleCoordinatorSelect(e.target.value)} className="w-full max-w-md p-2.5 border border-blue-200 dark:border-blue-800 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
                     <option value="">Select Coordinator...</option>
                     <option value="coord1">{leadership.coord1.name}</option>
                     <option value="coord2">{leadership.coord2.name}</option>
@@ -396,4 +401,14 @@ export default function App() {
                 {renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", "cleanup", 2)}
                 {renderAssignmentSection("5. Bread Providers", "Bring fresh bread 20 mins early.", "breadProviders", 1)}
                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8
+                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting to Make.com...' : 'Save & Dispatch All Notifications'}</button>
+                  {statusMessage && <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{statusMessage}</span>}
+                </div>
+              </div>
+            </div>
+          ) : renderSettings()}
+        </div>
+      </div>
+    </div>
+  );
+}
