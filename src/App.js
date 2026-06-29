@@ -30,13 +30,19 @@ const getUpcomingSundays = () => {
 // 2. MAIN APP COMPONENT
 // ==========================================
 export default function App() {
+  // --- AUTHENTICATION STATE ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authUsername, setAuthUsername] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState(false);
+
+  // --- APP DASHBOARD STATE ---
   const [activeTab, setActiveTab] = useState('roster');
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   const upcomingSundays = getUpcomingSundays();
   const [selectedDate, setSelectedDate] = useState(upcomingSundays[0]);
 
-  // Master Leadership Directory
   const [leadership, setLeadership] = useState({
     bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
     clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
@@ -75,6 +81,16 @@ export default function App() {
     setStatusMessage(null);
   }, [selectedDate]);
 
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    if (authUsername.trim().toLowerCase() === 'sacrament' && authPassword === 'BishopClarkeIsCool') {
+      setIsAuthenticated(true);
+      setAuthError(false);
+    } else {
+      setAuthError(true);
+    }
+  };
+
   const handleLeadershipChange = (role, field, value) => setLeadership(prev => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
   const handleSlotChange = (setter, list, index, field, value) => { const updated = [...list]; updated[index][field] = value; setter(updated); };
   const addSlot = (setter, list) => setter([...list, { name: '', email: '' }]);
@@ -110,7 +126,6 @@ export default function App() {
       </p>
     `;
 
-    // 1-4. Push Individual Participant Reminders (Direct To: only)
     const assignmentBatches = [
       { type: 'Preparation', list: validPreparers, sub: 'Sacrament setup', timeNote: 'Please arrive at least 20 minutes before the meeting begins to set up trays.' },
       { type: 'Administration', list: validAdmins, sub: 'Sacrament blessing', timeNote: 'Please ensure you are seated on the stand at least 15 minutes before the meeting begins.' },
@@ -128,7 +143,6 @@ export default function App() {
       });
     });
 
-    // 5. MASTER SUMMARY LOOP (Sanitized & Deduplicated Direct Copies)
     const renderHtmlList = (arr) => arr.length > 0 
       ? arr.map(d => `<li style="margin-bottom: 4px;"><strong>${d.name || 'Unknown'}</strong> &nbsp;<span style="color:#666;">(<a href="mailto:${d.email || ''}" style="color:#2563eb;">${d.email || 'No Email'}</a>)</span></li>`).join('')
       : `<li><em style="color:#999;">None assigned</em></li>`;
@@ -152,23 +166,11 @@ export default function App() {
       });
     });
 
-    // Fire HTTP POST packets with rate-limit buffer
     let successCount = 0;
     try {
       for (const emailData of emailsToSend) {
-        const response = await fetch(WEBHOOK_URL, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          body: JSON.stringify(emailData) 
-        });
-        
-        if (response.ok) {
-          successCount++;
-        } else {
-          console.error(`Failed to send packet to ${emailData.to}. Status: ${response.status}`);
-        }
-        
-        // 150ms throttle to prevent Make.com 429 Rate Limiting
+        const response = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailData) });
+        if (response.ok) successCount++;
         await new Promise(resolve => setTimeout(resolve, 150));
       }
       setStatusMessage(`Success! Dispatched ${successCount} live HTML emails via Brevo.`);
@@ -226,11 +228,88 @@ export default function App() {
     </div>
   );
 
+  // ==========================================
+  // 3. SECURITY GATEWAY RENDERER
+  // ==========================================
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
+        {/* Soft Ambient Corner Glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="max-w-sm w-full bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 text-white">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
+              🔒
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-100">Takapuna YSA Portal</h1>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Sacrament Roster Management</p>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Username</label>
+              <input 
+                type="text"
+                value={authUsername}
+                onChange={(e) => { setAuthUsername(e.target.value); setAuthError(false); }}
+                placeholder="Enter ward username"
+                className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80 focus:border-transparent transition text-sm font-medium"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Password</label>
+              <input 
+                type="password"
+                value={authPassword}
+                onChange={(e) => { setAuthPassword(e.target.value); setAuthError(false); }}
+                placeholder="••••••••••••"
+                className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80 focus:border-transparent transition text-sm font-medium"
+              />
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs font-semibold">
+                <span>⚠️</span> Unauthorized ward credentials.
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3.5 px-4 mt-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/25 transition duration-150 cursor-pointer text-sm tracking-wide"
+            >
+              Verify & Unlock
+            </button>
+          </form>
+
+          <div className="mt-8 text-center text-[11px] text-slate-600 font-medium tracking-wide">
+            Automated Brevo Dispatch Engine • NZ
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 4. MAIN APP RENDERER
+  // ==========================================
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200">
         <div className="max-w-6xl mx-auto">
-          <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4"><div><h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1><p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm sm:text-base">YSA 2nd Ward - Takapuna</p></div><button onClick={() => setIsDarkMode(!isDarkMode)} className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-lg sm:rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 font-medium text-sm flex items-center gap-2 cursor-pointer">{isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button></header>
+          <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1>
+              <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm sm:text-base">YSA 2nd Ward - Takapuna</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setIsAuthenticated(false)} className="px-4 py-2.5 rounded-lg sm:rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 hover:bg-red-100 font-medium text-sm transition cursor-pointer">🔒 Lock</button>
+              <button onClick={() => setIsDarkMode(!isDarkMode)} className="px-4 py-2.5 rounded-lg sm:rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 font-medium text-sm flex items-center gap-2 cursor-pointer">{isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
+            </div>
+          </header>
           <div className="grid grid-cols-2 sm:flex sm:gap-2 gap-2 mb-6"><button onClick={() => setActiveTab('roster')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl cursor-pointer ${activeTab === 'roster' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Manage Roster</button><button onClick={() => setActiveTab('settings')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Settings</button></div>
           {activeTab === 'roster' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
