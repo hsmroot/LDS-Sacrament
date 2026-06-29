@@ -110,7 +110,7 @@ export default function App() {
       </p>
     `;
 
-    // 1-4. Push Individual Participant Reminders (Strictly no CC attached)
+    // 1-4. Push Individual Participant Reminders (Direct To: only)
     const assignmentBatches = [
       { type: 'Preparation', list: validPreparers, sub: 'Sacrament setup', timeNote: 'Please arrive at least 20 minutes before the meeting begins to set up trays.' },
       { type: 'Administration', list: validAdmins, sub: 'Sacrament blessing', timeNote: 'Please ensure you are seated on the stand at least 15 minutes before the meeting begins.' },
@@ -121,14 +121,14 @@ export default function App() {
     assignmentBatches.forEach(batch => {
       batch.list.forEach(person => {
         emailsToSend.push({
-          to: person.email.trim(),
+          to: person.email.trim().toLowerCase(),
           subject: `${batch.sub} schedule for ${formattedDate} (${wardInfo})`,
           body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${person.name || 'Brother'},</p><p style="font-size: 16px; line-height: 1.5;">You have been assigned to <strong>${batch.type.toUpperCase()}</strong> the sacrament this coming Sunday, <strong>${formattedDate}</strong>, for the ${wardInfo}.</p><div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0;"><p style="margin: 0; color: #92400e; font-size: 14px;"><strong>⏰ Arrival Note:</strong> ${batch.timeNote}</p></div><p style="font-size: 15px;">Thank you for your service!</p>${htmlFooter}</div>`
         });
       });
     });
 
-    // 5. MASTER SUMMARY LOOP (Sends master copy directly to each leader's 'To:' inbox)
+    // 5. MASTER SUMMARY LOOP (Sanitized & Deduplicated Direct Copies)
     const renderHtmlList = (arr) => arr.length > 0 
       ? arr.map(d => `<li style="margin-bottom: 4px;"><strong>${d.name || 'Unknown'}</strong> &nbsp;<span style="color:#666;">(<a href="mailto:${d.email || ''}" style="color:#2563eb;">${d.email || 'No Email'}</a>)</span></li>`).join('')
       : `<li><em style="color:#999;">None assigned</em></li>`;
@@ -140,7 +140,7 @@ export default function App() {
       leadership.clerk?.email,
       leadership.specialist?.email,
       leadership.coord1?.email
-    ].map(e => e?.trim()).filter(isValidEmail);
+    ].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
 
     const uniqueDigestRecipients = [...new Set(digestRecipients)];
 
@@ -152,20 +152,24 @@ export default function App() {
       });
     });
 
-    // 6. Coordinator Confirmation HTML
-    if (isValidEmail(activeCoordinator?.email)) {
-      emailsToSend.push({
-        to: activeCoordinator.email.trim(),
-        subject: `Confirmation: Full Roster Dispatched - ${formattedDate}`,
-        body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${activeCoordinator.name},</p><p style="font-size: 16px; line-height: 1.5;">Thank you for organizing the roster. All verified sacrament assignments (Preparation, Administration, Delivery, and Clean-up) for the <strong>${wardInfo}</strong> have been successfully transmitted to your participants, and the Bishopric has been notified.</p></div>`
-      });
-    }
-
+    // Fire HTTP POST packets with rate-limit buffer
     let successCount = 0;
     try {
       for (const emailData of emailsToSend) {
-        const response = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailData) });
-        if (response.ok) successCount++;
+        const response = await fetch(WEBHOOK_URL, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify(emailData) 
+        });
+        
+        if (response.ok) {
+          successCount++;
+        } else {
+          console.error(`Failed to send packet to ${emailData.to}. Status: ${response.status}`);
+        }
+        
+        // 150ms throttle to prevent Make.com 429 Rate Limiting
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
       setStatusMessage(`Success! Dispatched ${successCount} live HTML emails via Brevo.`);
     } catch (error) {
