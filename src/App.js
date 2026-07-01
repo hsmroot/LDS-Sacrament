@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 // ⚠️ UNIVERSAL DB CONTROLLER URL INJECTED ⚠️
 const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/t1kkuoio37xqcgwclix160wpnnue3nte"; 
 const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/t1kkuoio37xqcgwclix160wpnnue3nte"; 
-const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt"; 
+const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/shwd9fgbc1sak14iwu81kaj9uc3duaur"; 
 
 const isValidEmail = (str) => {
   if (!str || typeof str !== 'string') return false;
@@ -242,8 +242,6 @@ export default function App() {
         }
       }
 
-      // 🛠️ The aggressive keystroke-saving bug was removed from here!
-
       return { ...prev, [selectedDate]: { ...dayData, [category]: updatedList } };
     });
   };
@@ -265,10 +263,12 @@ export default function App() {
   };
 
   // --- BREVO EMAIL ENGINE ---
- const handleSaveAndSend = async () => {
+  const handleSaveAndSend = async () => {
     setIsSaving(true);
     setStatusMessage(null);
-    await syncToCloud(false); // <--- Added "await"
+    
+    // 🛠️ RACE CONDITION FIXED: Wait for harvest and save to finish FIRST
+    await syncToCloud(false); 
 
     const activeCoordinator = leadership[currentRoster.coordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
