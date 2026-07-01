@@ -265,10 +265,10 @@ export default function App() {
   };
 
   // --- BREVO EMAIL ENGINE ---
-  const handleSaveAndSend = async () => {
+ const handleSaveAndSend = async () => {
     setIsSaving(true);
     setStatusMessage(null);
-    syncToCloud(false); // This triggers the harvest engine automatically!
+    await syncToCloud(false); // <--- Added "await"
 
     const activeCoordinator = leadership[currentRoster.coordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
