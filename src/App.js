@@ -76,11 +76,22 @@ export default function App() {
         const res = await fetch(LOAD_WEBHOOK_URL);
         const data = await res.json();
 
-        if (data.leadership && data.leadership.length > 5) setLeadership(JSON.parse(data.leadership));
-        if (data.contacts && data.contacts.length > 5) setContacts(JSON.parse(data.contacts));
+        // Safe Parsing Engine to handle both Strings and Objects
+        const parseSafe = (val) => {
+          if (!val) return null;
+          if (typeof val === 'object') return val;
+          try { return JSON.parse(val); } catch (e) { return null; }
+        };
+
+        const parsedLeadership = parseSafe(data.leadership);
+        if (parsedLeadership) setLeadership(parsedLeadership);
+
+        const parsedContacts = parseSafe(data.contacts);
+        if (Array.isArray(parsedContacts)) setContacts(parsedContacts);
         
-        if (data.roster && data.roster.length > 5) {
-          setRosterLedger(JSON.parse(data.roster));
+        const parsedRoster = parseSafe(data.roster);
+        if (parsedRoster && Object.keys(parsedRoster).length > 0) {
+          setRosterLedger(parsedRoster);
         } else {
           const defaultLedger = {};
           upcomingSundays.forEach(dateStr => {
@@ -96,7 +107,7 @@ export default function App() {
           setRosterLedger(defaultLedger);
         }
       } catch (err) {
-        console.error("Cloud connection pending initialization...");
+        console.error("Cloud connection error, falling back to empty state:", err);
       } finally {
         setIsCloudLoading(false);
       }
