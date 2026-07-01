@@ -10,9 +10,9 @@
 import React, { useState, useEffect } from 'react';
 
 // ⚠️ YOUR MAKE.COM WEBHOOK URLS ⚠️
-const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/YOUR_LOAD_HOOK_HERE"; // We will build this one later
-const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/5ygwiav1frr1mss3ix3f9kk85hfi5xlr"; // Your mapped Save Hook
-const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt"; // Your existing email hook
+const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/86nc97m8q2u8t3vzq5m00i0fxq2p5qux"; 
+const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/5ygwiav1frr1mss3ix3f9kk85hfi5xlr"; 
+const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt"; 
 
 const isValidEmail = (str) => {
   if (!str || typeof str !== 'string') return false;
