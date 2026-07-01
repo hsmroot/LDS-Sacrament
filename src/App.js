@@ -343,7 +343,8 @@ export default function App() {
           {list.map((d, index) => (
             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-0 bg-white dark:bg-gray-800 sm:bg-transparent rounded-lg border border-gray-200/60 dark:border-gray-700 sm:border-none relative shadow-sm sm:shadow-none">
               <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-bold sm:w-8 sm:text-right"><span className="sm:hidden">Spot </span>#{index + 1}</span>
-              <input type="text" placeholder="Name (Auto-fills if known)" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              {/* ⚠️ MAGIC HAPPENS HERE: We add list="ward-contacts-list" to link the input to the dictionary */}
+              <input type="text" list="ward-contacts-list" placeholder="Name (Select or type)" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               <input type="email" placeholder="Email Address" value={d.email || ''} onChange={e => handleSlotChange(categoryKey, index, 'email', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               {list.length > defaultLength ? <button onClick={() => removeSlot(categoryKey, index, defaultLength)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg bg-gray-50 dark:bg-gray-700 sm:bg-transparent rounded-full h-7 w-7 sm:h-auto sm:w-auto flex items-center justify-center cursor-pointer">✕</button> : <div className="hidden sm:block w-7"></div>}
             </div>
@@ -461,6 +462,14 @@ export default function App() {
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200 flex flex-col justify-between">
+        
+        {/* ⚠️ THE INVISIBLE DICTIONARY ENGINE */}
+        <datalist id="ward-contacts-list">
+          {contacts.map((c, idx) => (
+            <option key={idx} value={c.name} />
+          ))}
+        </datalist>
+
         <div className="max-w-6xl mx-auto w-full">
           <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
             <div><h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1><p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm sm:text-base">YSA 2nd Ward - Takapuna</p></div>
