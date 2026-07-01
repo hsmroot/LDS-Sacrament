@@ -9,9 +9,9 @@
 
 import React, { useState, useEffect } from 'react';
 
-// ⚠️ DOUBLE CHECK THESE URLS MATCH THE RIGHT MAKE.COM SCENARIOS ⚠️
-const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/86nc97m8q2u8t3vzq5m00i0fxq2p5qux"; 
-const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/5ygwiav1frr1mss3ix3f9kk85hfi5xlr"; 
+// ⚠️ UNIVERSAL DB CONTROLLER URL INJECTED ⚠️
+const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/t1kkuoio37xqcgwclix160wpnnue3nte"; 
+const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/t1kkuoio37xqcgwclix160wpnnue3nte"; 
 const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt"; 
 
 const isValidEmail = (str) => {
