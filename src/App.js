@@ -76,7 +76,6 @@ export default function App() {
         const res = await fetch(LOAD_WEBHOOK_URL);
         const data = await res.json();
 
-        // Safe Parsing Engine to handle both Strings and Objects
         const parseSafe = (val) => {
           if (!val) return null;
           if (typeof val === 'object') return val;
@@ -119,10 +118,32 @@ export default function App() {
   // --- 2. CLOUD SYNC ENGINE (WRITE) ---
   const syncToCloud = async (showToast = true) => {
     if (showToast) setCloudSyncStatus("Syncing...");
+    
+    // 🛠️ NEW: HARVEST FINISHED CONTACTS ONLY ON SYNC
+    let harvestedContacts = [...contacts];
+    Object.values(rosterLedger).forEach(day => {
+      ['preparers', 'administrators', 'deliverers', 'cleanup', 'breadProviders'].forEach(cat => {
+        (day[cat] || []).forEach(person => {
+          const n = person.name?.trim();
+          const e = person.email?.trim();
+          if (n && n.length > 1 && isValidEmail(e)) {
+            const existingIdx = harvestedContacts.findIndex(c => c.name.toLowerCase() === n.toLowerCase());
+            if (existingIdx >= 0) {
+              harvestedContacts[existingIdx].email = e; // Update email if name exists
+            } else {
+              harvestedContacts.push({ name: n, email: e }); // Add new person
+            }
+          }
+        });
+      });
+    });
+
+    setContacts(harvestedContacts); // Update UI state
+
     try {
       const payload = {
         leadership: JSON.stringify(leadership),
-        contacts: JSON.stringify(contacts),
+        contacts: JSON.stringify(harvestedContacts), // Send clean list to cloud
         roster: JSON.stringify(rosterLedger)
       };
 
@@ -213,6 +234,7 @@ export default function App() {
       
       updatedList[index] = { ...updatedList[index], [field]: value };
 
+      // Autofill email if we recognize the name from the dictionary
       if (field === 'name' && value.trim().length > 1) {
         const match = contacts.find(c => c.name.toLowerCase() === value.trim().toLowerCase());
         if (match && match.email) {
@@ -220,21 +242,8 @@ export default function App() {
         }
       }
 
-      const currentName = updatedList[index].name.trim();
-      const currentEmail = updatedList[index].email.trim();
-      
-      if (currentName && isValidEmail(currentEmail)) {
-        setContacts(prevContacts => {
-          const existingIndex = prevContacts.findIndex(c => c.name.toLowerCase() === currentName.toLowerCase());
-          const newContacts = [...prevContacts];
-          if (existingIndex >= 0) {
-            if (newContacts[existingIndex].email !== currentEmail) newContacts[existingIndex].email = currentEmail;
-          } else {
-            newContacts.push({ name: currentName, email: currentEmail });
-          }
-          return newContacts;
-        });
-      }
+      // 🛠️ The aggressive keystroke-saving bug was removed from here!
+
       return { ...prev, [selectedDate]: { ...dayData, [category]: updatedList } };
     });
   };
@@ -259,7 +268,7 @@ export default function App() {
   const handleSaveAndSend = async () => {
     setIsSaving(true);
     setStatusMessage(null);
-    syncToCloud(false);
+    syncToCloud(false); // This triggers the harvest engine automatically!
 
     const activeCoordinator = leadership[currentRoster.coordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
@@ -343,7 +352,6 @@ export default function App() {
           {list.map((d, index) => (
             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-0 bg-white dark:bg-gray-800 sm:bg-transparent rounded-lg border border-gray-200/60 dark:border-gray-700 sm:border-none relative shadow-sm sm:shadow-none">
               <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-bold sm:w-8 sm:text-right"><span className="sm:hidden">Spot </span>#{index + 1}</span>
-              {/* ⚠️ MAGIC HAPPENS HERE: We add list="ward-contacts-list" to link the input to the dictionary */}
               <input type="text" list="ward-contacts-list" placeholder="Name (Select or type)" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               <input type="email" placeholder="Email Address" value={d.email || ''} onChange={e => handleSlotChange(categoryKey, index, 'email', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               {list.length > defaultLength ? <button onClick={() => removeSlot(categoryKey, index, defaultLength)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg bg-gray-50 dark:bg-gray-700 sm:bg-transparent rounded-full h-7 w-7 sm:h-auto sm:w-auto flex items-center justify-center cursor-pointer">✕</button> : <div className="hidden sm:block w-7"></div>}
@@ -360,7 +368,7 @@ export default function App() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ward Contacts Book</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Names entered in the Roster are automatically saved here.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Names entered in the Roster are harvested and saved here when you Sync to Cloud.</p>
         </div>
         <button onClick={addManualContact} className="px-4 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold rounded-lg border border-blue-200 dark:border-blue-800 text-sm hover:bg-blue-100 transition">
           + Add Contact
@@ -463,7 +471,7 @@ export default function App() {
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200 flex flex-col justify-between">
         
-        {/* ⚠️ THE INVISIBLE DICTIONARY ENGINE */}
+        {/* INVISIBLE DICTIONARY ENGINE */}
         <datalist id="ward-contacts-list">
           {contacts.map((c, idx) => (
             <option key={idx} value={c.name} />
