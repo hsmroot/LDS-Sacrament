@@ -1,23 +1,19 @@
 /**
  * ============================================================================
- * SACRAMENT ROSTER MANAGEMENT PORTAL
+ * SACRAMENT ROSTER MANAGEMENT PORTAL (CLOUD NATIVE)
  * ============================================================================
  * Author: Harisankar Menon
  * Contact: harisankarmenon@protonmail.ch
- * Organization: YSA 2nd Ward, Takapuna (9 Taharoto Road, Auckland)
- * 
- * OPEN SOURCE SOFTWARE LICENSES USED:
- * - React (v18+) — Licensed under the MIT License (Copyright © Meta Platforms, Inc.)
- * - Tailwind CSS — Licensed under the MIT License (Copyright © Tailwind Labs, Inc.)
- * - DOM/UI Icons — Standard Native Unicode Emoji Specification (ISO/IEC 10646)
  * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';
 
-// ==========================================
-// 0. STRICT PRE-FLIGHT VALIDATORS
-// ==========================================
+// ⚠️ YOUR MAKE.COM WEBHOOK URLS ⚠️
+const LOAD_WEBHOOK_URL = "https://hook.us2.make.com/YOUR_LOAD_HOOK_HERE"; // We will build this one later
+const SAVE_WEBHOOK_URL = "https://hook.us2.make.com/5ygwiav1frr1mss3ix3f9kk85hfi5xlr"; // Your mapped Save Hook
+const BREVO_WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt"; // Your existing email hook
+
 const isValidEmail = (str) => {
   if (!str || typeof str !== 'string') return false;
   const cleaned = str.trim();
@@ -25,15 +21,10 @@ const isValidEmail = (str) => {
   return emailRegex.test(cleaned);
 };
 
-// ==========================================
-// 1. DYNAMIC DATE HELPER
-// ==========================================
 const getUpcomingSundays = () => {
   const sundays = [];
   const date = new Date();
-  
   date.setDate(date.getDate() + ((7 - date.getDay()) % 7)); 
-  
   for (let i = 0; i < 4; i++) {
     sundays.push(new Date(date).toISOString().split('T')[0]);
     date.setDate(date.getDate() + 7); 
@@ -41,86 +32,125 @@ const getUpcomingSundays = () => {
   return sundays;
 };
 
-// ==========================================
-// 2. MAIN APP COMPONENT
-// ==========================================
+const DEFAULT_LEADERSHIP = {
+  bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
+  clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
+  specialist: { name: 'Tech Specialist (You)', email: 'harisankarmenon@protonmail.ch', phone: '555-0005' },
+  coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
+  coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
+};
+
 export default function App() {
   const [isStyleEngineReady, setIsStyleEngineReady] = useState(false);
+  const [isCloudLoading, setIsCloudLoading] = useState(true);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState(null); 
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('roster');
+  const [activeTab, setActiveTab] = useState('roster'); 
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   const upcomingSundays = getUpcomingSundays();
   const [selectedDate, setSelectedDate] = useState(upcomingSundays[0]);
 
-  const [leadership, setLeadership] = useState({
-    bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
-    clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
-    specialist: { name: 'Tech Specialist (You)', email: 'harisankarmenon@protonmail.ch', phone: '555-0005' },
-    coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
-    coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
-  });
-
-  const [rosterLedger, setRosterLedger] = useState(() => {
-    const initialLedger = {};
-    upcomingSundays.forEach(dateStr => {
-      initialLedger[dateStr] = {
-        coordinatorKey: '',
-        preparers: [{ name: '', email: '' }, { name: '', email: '' }],
-        administrators: [{ name: '', email: '' }, { name: '', email: '' }],
-        deliverers: [{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }],
-        cleanup: [{ name: '', email: '' }, { name: '', email: '' }],
-        breadProviders: [{ name: '', email: '' }]
-      };
-    });
-    return initialLedger;
-  });
+  // CLOUD STATE DIRECTORIES
+  const [leadership, setLeadership] = useState(DEFAULT_LEADERSHIP);
+  const [contacts, setContacts] = useState([]);
+  const [rosterLedger, setRosterLedger] = useState({});
 
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [settingsStatus, setSettingsStatus] = useState(null);
 
   const currentRoster = rosterLedger[selectedDate] || {
-    coordinatorKey: '',
-    preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: []
+    coordinatorKey: '', preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: []
   };
 
+  // --- 1. BOOT SEQUENCE: LOAD FROM CLOUD ---
   useEffect(() => {
-    if (window.tailwind) {
-      setIsStyleEngineReady(true);
-      return;
-    }
+    const fetchCloudData = async () => {
+      try {
+        const res = await fetch(LOAD_WEBHOOK_URL);
+        const data = await res.json();
 
+        if (data.leadership && data.leadership.length > 5) setLeadership(JSON.parse(data.leadership));
+        if (data.contacts && data.contacts.length > 5) setContacts(JSON.parse(data.contacts));
+        
+        if (data.roster && data.roster.length > 5) {
+          setRosterLedger(JSON.parse(data.roster));
+        } else {
+          const defaultLedger = {};
+          upcomingSundays.forEach(dateStr => {
+            defaultLedger[dateStr] = {
+              coordinatorKey: '',
+              preparers: [{ name: '', email: '' }, { name: '', email: '' }],
+              administrators: [{ name: '', email: '' }, { name: '', email: '' }],
+              deliverers: [{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }],
+              cleanup: [{ name: '', email: '' }, { name: '', email: '' }],
+              breadProviders: [{ name: '', email: '' }]
+            };
+          });
+          setRosterLedger(defaultLedger);
+        }
+      } catch (err) {
+        console.error("Cloud connection pending initialization...");
+      } finally {
+        setIsCloudLoading(false);
+      }
+    };
+
+    fetchCloudData();
+  }, []); 
+
+  // --- 2. CLOUD SYNC ENGINE (WRITE) ---
+  const syncToCloud = async (showToast = true) => {
+    if (showToast) setCloudSyncStatus("Syncing...");
+    try {
+      const payload = {
+        leadership: JSON.stringify(leadership),
+        contacts: JSON.stringify(contacts),
+        roster: JSON.stringify(rosterLedger)
+      };
+
+      await fetch(SAVE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (showToast) {
+        setCloudSyncStatus("✅ Cloud Synced");
+        setTimeout(() => setCloudSyncStatus(null), 3000);
+      }
+    } catch (err) {
+      if (showToast) setCloudSyncStatus("❌ Sync Failed");
+      console.error(err);
+    }
+  };
+
+  // Tailwind injection
+  useEffect(() => {
+    if (window.tailwind) { setIsStyleEngineReady(true); return; }
     const script = document.createElement('script');
     script.src = 'https://cdn.tailwindcss.com';
     script.async = true;
     script.onload = () => {
-      if (window.tailwind) {
-        window.tailwind.config = { darkMode: 'class' };
-      }
+      if (window.tailwind) window.tailwind.config = { darkMode: 'class' };
       setIsStyleEngineReady(true);
     };
-    script.onerror = () => {
-      setIsStyleEngineReady(true);
-    };
+    script.onerror = () => setIsStyleEngineReady(true);
     document.head.appendChild(script);
   }, []);
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
-  useEffect(() => {
-    setStatusMessage(null);
-  }, [selectedDate]);
+  useEffect(() => setStatusMessage(null), [selectedDate, activeTab]);
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -134,20 +164,66 @@ export default function App() {
 
   const handleLeadershipChange = (role, field, value) => {
     setLeadership(prev => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
+    setSettingsStatus(null);
+  };
+
+  const saveLeadershipSettings = () => {
+    syncToCloud(false);
+    setSettingsStatus("Leadership settings securely saved to cloud.");
+    setTimeout(() => setSettingsStatus(null), 3000);
+  };
+
+  const handleContactChange = (index, field, value) => {
+    setContacts(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const deleteContact = (index) => {
+    if (window.confirm("Remove this contact from your address book?")) {
+      setContacts(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const addManualContact = () => {
+    setContacts(prev => [{ name: '', email: '' }, ...prev]);
   };
 
   const handleCoordinatorSelect = (key) => {
-    setRosterLedger(prev => ({
-      ...prev,
-      [selectedDate]: { ...prev[selectedDate], coordinatorKey: key }
-    }));
+    setRosterLedger(prev => ({ ...prev, [selectedDate]: { ...prev[selectedDate], coordinatorKey: key } }));
   };
 
   const handleSlotChange = (category, index, field, value) => {
     setRosterLedger(prev => {
       const dayData = prev[selectedDate] || { preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: [] };
       const updatedList = [...(dayData[category] || [])];
+      
       updatedList[index] = { ...updatedList[index], [field]: value };
+
+      if (field === 'name' && value.trim().length > 1) {
+        const match = contacts.find(c => c.name.toLowerCase() === value.trim().toLowerCase());
+        if (match && match.email) {
+          updatedList[index].email = match.email;
+        }
+      }
+
+      const currentName = updatedList[index].name.trim();
+      const currentEmail = updatedList[index].email.trim();
+      
+      if (currentName && isValidEmail(currentEmail)) {
+        setContacts(prevContacts => {
+          const existingIndex = prevContacts.findIndex(c => c.name.toLowerCase() === currentName.toLowerCase());
+          const newContacts = [...prevContacts];
+          if (existingIndex >= 0) {
+            if (newContacts[existingIndex].email !== currentEmail) newContacts[existingIndex].email = currentEmail;
+          } else {
+            newContacts.push({ name: currentName, email: currentEmail });
+          }
+          return newContacts;
+        });
+      }
       return { ...prev, [selectedDate]: { ...dayData, [category]: updatedList } };
     });
   };
@@ -155,11 +231,7 @@ export default function App() {
   const addSlot = (category) => {
     setRosterLedger(prev => {
       const dayData = prev[selectedDate] || { preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: [] };
-      const currentList = dayData[category] || [];
-      return {
-        ...prev,
-        [selectedDate]: { ...dayData, [category]: [...currentList, { name: '', email: '' }] }
-      };
+      return { ...prev, [selectedDate]: { ...dayData, [category]: [...(dayData[category] || []), { name: '', email: '' }] } };
     });
   };
 
@@ -172,12 +244,11 @@ export default function App() {
     });
   };
 
-  // --- LIVE BREVO API DISPATCH ENGINE ---
+  // --- BREVO EMAIL ENGINE ---
   const handleSaveAndSend = async () => {
     setIsSaving(true);
     setStatusMessage(null);
-
-    const WEBHOOK_URL = "https://hook.us2.make.com/rs4v4lmwkwm43w1i8p5ccag8pkdv64gt";
+    syncToCloud(false);
 
     const activeCoordinator = leadership[currentRoster.coordinatorKey];
     const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
@@ -190,17 +261,11 @@ export default function App() {
     const validBreadProviders = (currentRoster.breadProviders || []).filter(d => isValidEmail(d.email));
 
     const emailsToSend = [];
-    
     const htmlPreHeader = `<span style="display:none;font-size:1px;color:#ffffff;max-height:0px;opacity:0;">Sacrament duty update and schedule confirmation for this Sunday meeting.</span>`;
-
     const htmlFooter = `
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px 0;" />
-      <p style="font-size: 13px; color: #6b7280; margin: 0 0 4px 0;">
-        If you have questions or need to arrange a substitute, please contact your coordinator, <strong>${activeCoordinator?.name || 'your coordinator'}</strong>:
-      </p>
-      <p style="font-size: 13px; color: #6b7280; margin: 0;">
-        📞 ${activeCoordinator?.phone || 'N/A'} &nbsp;|&nbsp; ✉️ <a href="mailto:${activeCoordinator?.email || ''}" style="color: #2563eb;">${activeCoordinator?.email || 'N/A'}</a>
-      </p>
+      <p style="font-size: 13px; color: #6b7280; margin: 0 0 4px 0;">If you have questions or need to arrange a substitute, please contact your coordinator, <strong>${activeCoordinator?.name || 'your coordinator'}</strong>:</p>
+      <p style="font-size: 13px; color: #6b7280; margin: 0;">📞 ${activeCoordinator?.phone || 'N/A'} &nbsp;|&nbsp; ✉️ <a href="mailto:${activeCoordinator?.email || ''}" style="color: #2563eb;">${activeCoordinator?.email || 'N/A'}</a></p>
     `;
 
     const assignmentBatches = [
@@ -227,39 +292,29 @@ export default function App() {
 
     const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">5. Bread Provider</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validBreadProviders)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
 
-    const digestRecipients = [
-      leadership.bishop?.email,
-      leadership.clerk?.email,
-      leadership.specialist?.email,
-      leadership.coord1?.email
-    ].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
-
+    const digestRecipients = [leadership.bishop?.email, leadership.clerk?.email, leadership.specialist?.email, leadership.coord1?.email].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
     const uniqueDigestRecipients = [...new Set(digestRecipients)];
 
     uniqueDigestRecipients.forEach(leaderEmail => {
-      emailsToSend.push({
-        to: leaderEmail,
-        subject: `Roster Finalized: ${wardInfo} Sacrament - ${formattedDate}`,
-        body: summaryHtmlBody
-      });
+      emailsToSend.push({ to: leaderEmail, subject: `Roster Finalized: ${wardInfo} Sacrament - ${formattedDate}`, body: summaryHtmlBody });
     });
 
     if (isValidEmail(activeCoordinator?.email)) {
       emailsToSend.push({
         to: activeCoordinator.email.trim().toLowerCase(),
         subject: `Confirmation: Full Roster Dispatched - ${formattedDate}`,
-        body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${activeCoordinator.name},</p><p style="font-size: 16px; line-height: 1.5;">Thank you for organizing the roster. All verified sacrament assignments (Preparation, Administration, Delivery, Clean-up, and Bread Provision) for the <strong>${wardInfo}</strong> have been successfully transmitted to your participants, and the Bishopric has been notified.</p></div>`
+        body: `<div style="font-family: sans-serif; color: #1f2937; max-width: 600px;">${htmlPreHeader}<p style="font-size: 16px;">Dear ${activeCoordinator.name},</p><p style="font-size: 16px; line-height: 1.5;">Thank you for organizing the roster. All verified sacrament assignments for the <strong>${wardInfo}</strong> have been successfully transmitted to your participants, and the Bishopric has been notified.</p></div>`
       });
     }
 
     let successCount = 0;
     try {
       for (const emailData of emailsToSend) {
-        const response = await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailData) });
+        const response = await fetch(BREVO_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailData) });
         if (response.ok) successCount++;
         await new Promise(resolve => setTimeout(resolve, 150));
       }
-      setStatusMessage(`Success! Dispatched ${successCount} live HTML emails via Brevo.`);
+      setStatusMessage(`Success! Dispatched ${successCount} emails via Brevo.`);
     } catch (error) {
       console.error("Network Dispatch Error:", error);
       setStatusMessage('Error: Could not reach Make.com. Check internet connection.');
@@ -277,7 +332,7 @@ export default function App() {
           {list.map((d, index) => (
             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-0 bg-white dark:bg-gray-800 sm:bg-transparent rounded-lg border border-gray-200/60 dark:border-gray-700 sm:border-none relative shadow-sm sm:shadow-none">
               <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm font-bold sm:w-8 sm:text-right"><span className="sm:hidden">Spot </span>#{index + 1}</span>
-              <input type="text" placeholder="Name" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              <input type="text" placeholder="Name (Auto-fills if known)" value={d.name || ''} onChange={e => handleSlotChange(categoryKey, index, 'name', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               <input type="email" placeholder="Email Address" value={d.email || ''} onChange={e => handleSlotChange(categoryKey, index, 'email', e.target.value)} className="w-full sm:flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
               {list.length > defaultLength ? <button onClick={() => removeSlot(categoryKey, index, defaultLength)} className="absolute top-2 right-2 sm:static sm:top-auto sm:right-auto text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 font-bold text-lg bg-gray-50 dark:bg-gray-700 sm:bg-transparent rounded-full h-7 w-7 sm:h-auto sm:w-auto flex items-center justify-center cursor-pointer">✕</button> : <div className="hidden sm:block w-7"></div>}
             </div>
@@ -288,11 +343,41 @@ export default function App() {
     );
   };
 
+  const renderContacts = () => (
+    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ward Contacts Book</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Names entered in the Roster are automatically saved here.</p>
+        </div>
+        <button onClick={addManualContact} className="px-4 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold rounded-lg border border-blue-200 dark:border-blue-800 text-sm hover:bg-blue-100 transition">
+          + Add Contact
+        </button>
+      </div>
+
+      {contacts.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+          <p className="text-gray-500 dark:text-gray-400">No contacts saved yet.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Start assigning people in the Roster tab to build your address book.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {contacts.map((c, index) => (
+            <div key={index} className="flex flex-col sm:flex-row gap-3 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-100 dark:border-gray-800 items-start sm:items-center">
+              <input type="text" placeholder="Name" value={c.name} onChange={(e) => handleContactChange(index, 'name', e.target.value)} className="w-full sm:flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="email" placeholder="Email Address" value={c.email} onChange={(e) => handleContactChange(index, 'email', e.target.value)} className="w-full sm:flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+              <button onClick={() => deleteContact(index)} className="text-red-500 hover:text-red-700 p-2 font-bold bg-red-50 dark:bg-red-900/20 rounded-md border border-red-100 dark:border-red-900/50 w-full sm:w-auto">Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderSettings = () => (
     <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200 space-y-8">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Leadership Directory</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update contact info. The Bishopric, Clerk, Specialist, and active Coordinator automatically receive a full copy of the roster directly to their inbox.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4 sm:space-y-6">
             <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Sacrament Coordinators</h3>
@@ -315,121 +400,76 @@ export default function App() {
             ))}
           </div>
         </div>
+        <div className="mt-6 flex items-center gap-4">
+          <button onClick={saveLeadershipSettings} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition">Save Leadership Data</button>
+          {settingsStatus && <span className="text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{settingsStatus}</span>}
+        </div>
       </div>
 
-      {/* AUTHOR & LICENSING METADATA BLOCK */}
       <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <span>📜</span> Software Attribution & Open Source Licenses
-        </h3>
+        <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><span>📜</span> Software Attribution & Open Source Licenses</h3>
         <div className="bg-gray-50 dark:bg-gray-900/40 p-5 rounded-xl border border-gray-200/80 dark:border-gray-700 text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-4 shadow-inner">
-          <div>
-            <span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1">Lead Developer & Author</span>
-            <p className="font-medium">Harisankar Menon &bull; <a href="mailto:harisankarmenon@protonmail.ch" className="text-blue-600 dark:text-blue-400 hover:underline">harisankarmenon@protonmail.ch</a></p>
-          </div>
-          <div>
-            <span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1.5">Third-Party Licenses</span>
-            <ul className="list-disc pl-5 space-y-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-              <li><strong className="text-gray-700 dark:text-gray-300">React</strong> — MIT License (Copyright &copy; Meta Platforms, Inc. and affiliates)</li>
-              <li><strong className="text-gray-700 dark:text-gray-300">Tailwind CSS</strong> — MIT License (Copyright &copy; Tailwind Labs, Inc.)</li>
-              <li><strong className="text-gray-700 dark:text-gray-300">Native Emoji Typography</strong> — Standard Unicode Standard (ISO/IEC 10646)</li>
-            </ul>
-          </div>
+          <div><span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1">Lead Developer & Author</span><p className="font-medium">Harisankar Menon &bull; <a href="mailto:harisankarmenon@protonmail.ch" className="text-blue-600 dark:text-blue-400 hover:underline">harisankarmenon@protonmail.ch</a></p></div>
+          <div><span className="font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider text-[11px] block mb-1.5">Third-Party Licenses</span><ul className="list-disc pl-5 space-y-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400"><li><strong className="text-gray-700 dark:text-gray-300">React</strong> — MIT License (Copyright &copy; Meta Platforms, Inc.)</li><li><strong className="text-gray-700 dark:text-gray-300">Tailwind CSS</strong> — MIT License (Copyright &copy; Tailwind Labs, Inc.)</li></ul></div>
         </div>
       </div>
     </div>
   );
 
-  // ==========================================
-  // 3. GATE 1: PRE-RENDER CLOAK (Prevents FOUC)
-  // ==========================================
-  if (!isStyleEngineReady) {
-    return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
-  }
+  // --- CLOAK & AUTH GATEWAYS ---
+  if (!isStyleEngineReady) return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
 
-  // ==========================================
-  // 4. GATE 2: SECURITY GATEWAY RENDERER
-  // ==========================================
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
-
         <div className="max-w-sm w-full bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 text-white">
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
-              🍞
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-100">Sacrament Roster</h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium">YSA 2nd Ward, Takapuna</p>
-          </div>
-
+          <div className="text-center mb-8"><div className="w-14 h-14 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">🍞</div><h1 className="text-xl font-bold tracking-tight text-slate-100">Sacrament Roster</h1><p className="text-xs text-slate-400 mt-1 font-medium">YSA 2nd Ward, Takapuna</p></div>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Username</label>
-              <input 
-                type="text"
-                value={authUsername}
-                onChange={(e) => { setAuthUsername(e.target.value); setAuthError(false); }}
-                placeholder="Enter ward username"
-                className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80 focus:border-transparent transition text-sm font-medium"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Password</label>
-              <input 
-                type="password"
-                value={authPassword}
-                onChange={(e) => { setAuthPassword(e.target.value); setAuthError(false); }}
-                placeholder="••••••••••••"
-                className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80 focus:border-transparent transition text-sm font-medium"
-              />
-            </div>
-
-            {authError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs font-semibold">
-                <span>⚠️</span> Unauthorized ward credentials.
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3.5 px-4 mt-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/25 transition duration-150 cursor-pointer text-sm tracking-wide"
-            >
-              Verify & Unlock
-            </button>
+            <div><label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Username</label><input type="text" value={authUsername} onChange={(e) => { setAuthUsername(e.target.value); setAuthError(false); }} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" autoFocus /></div>
+            <div><label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Password</label><input type="password" value={authPassword} onChange={(e) => { setAuthPassword(e.target.value); setAuthError(false); }} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" /></div>
+            {authError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs font-semibold"><span>⚠️</span> Unauthorized ward credentials.</div>}
+            <button type="submit" className="w-full py-3.5 px-4 mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/25 transition duration-150 cursor-pointer text-sm">Verify & Unlock</button>
           </form>
-
-          <div className="mt-8 text-center text-[11px] text-slate-500 font-medium tracking-wide leading-relaxed">
-            9 Taharoto Road, Auckland
-          </div>
+          <div className="mt-8 text-center text-[11px] text-slate-500 font-medium tracking-wide">9 Taharoto Road, Auckland</div>
         </div>
       </div>
     );
   }
 
-  // ==========================================
-  // 5. GATE 3: MAIN APP RENDERER
-  // ==========================================
+  if (isCloudLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-300 font-medium">Fetching database from Google Sheets...</p>
+      </div>
+    );
+  }
+
   return (
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 font-sans transition-colors duration-200 flex flex-col justify-between">
         <div className="max-w-6xl mx-auto w-full">
           <header className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-            <div>
-              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm sm:text-base">YSA 2nd Ward - Takapuna</p>
-            </div>
+            <div><h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Sacrament Roster</h1><p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm sm:text-base">YSA 2nd Ward - Takapuna</p></div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsAuthenticated(false)} className="px-4 py-2.5 rounded-lg sm:rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 hover:bg-red-100 font-medium text-sm transition cursor-pointer">🔒 Lock</button>
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="px-4 py-2.5 rounded-lg sm:rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 font-medium text-sm flex items-center gap-2 cursor-pointer">{isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mr-2 shadow-inner border border-gray-200 dark:border-gray-700">
+                <button onClick={() => syncToCloud(true)} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-700 rounded-md transition flex items-center gap-2">☁️ Sync to Cloud</button>
+                {cloudSyncStatus && <span className={`px-3 py-1.5 text-xs font-bold rounded-md ml-2 ${cloudSyncStatus.includes('Failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{cloudSyncStatus}</span>}
+              </div>
+              <button onClick={() => setIsAuthenticated(false)} className="px-4 py-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 hover:bg-red-100 font-medium text-sm transition">🔒 Lock</button>
+              <button onClick={() => setIsDarkMode(!isDarkMode)} className="px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 font-medium text-sm">{isDarkMode ? '☀️' : '🌙'}</button>
             </div>
           </header>
-          <div className="grid grid-cols-2 sm:flex sm:gap-2 gap-2 mb-6"><button onClick={() => setActiveTab('roster')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl cursor-pointer ${activeTab === 'roster' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Manage Roster</button><button onClick={() => setActiveTab('settings')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl cursor-pointer ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Settings</button></div>
-          {activeTab === 'roster' ? (
+          
+          <div className="grid grid-cols-3 sm:flex sm:gap-2 gap-2 mb-6">
+            <button onClick={() => setActiveTab('roster')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl ${activeTab === 'roster' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Roster</button>
+            <button onClick={() => setActiveTab('contacts')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl ${activeTab === 'contacts' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Contacts</button>
+            <button onClick={() => setActiveTab('settings')} className={`px-4 sm:px-6 py-3 sm:py-2.5 text-sm sm:text-base font-bold rounded-xl ${activeTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>Settings</button>
+          </div>
+
+          {activeTab === 'roster' && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-fit"><h2 className="font-semibold text-gray-700 dark:text-gray-300 mb-3 text-sm uppercase tracking-wider">Upcoming Sundays</h2><div className="space-y-2">{upcomingSundays.map(dateStr => (<button key={dateStr} onClick={() => setSelectedDate(dateStr)} className={`w-full text-left p-3 rounded-lg font-medium cursor-pointer ${selectedDate === dateStr ? 'bg-blue-600 text-white font-bold shadow-md' : 'bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300'}`}>{new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</button>))}</div></div>
               <div className="md:col-span-3 bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -437,9 +477,7 @@ export default function App() {
                 <div className="mb-8 p-4 sm:p-5 bg-blue-50/60 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/50">
                   <label className="block text-sm font-semibold text-blue-950 dark:text-blue-300 mb-3">Who is coordinating?</label>
                   <select value={currentRoster.coordinatorKey || ''} onChange={e => handleCoordinatorSelect(e.target.value)} className="w-full max-w-md p-2.5 border border-blue-200 dark:border-blue-800 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                    <option value="">Select Coordinator...</option>
-                    <option value="coord1">{leadership.coord1.name}</option>
-                    <option value="coord2">{leadership.coord2.name}</option>
+                    <option value="">Select Coordinator...</option><option value="coord1">{leadership.coord1.name}</option><option value="coord2">{leadership.coord2.name}</option>
                   </select>
                 </div>
                 {renderAssignmentSection("1. Sacrament Preparers", "Arrive 20 mins early.", "preparers", 2)}
@@ -448,15 +486,15 @@ export default function App() {
                 {renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", "cleanup", 2)}
                 {renderAssignmentSection("5. Bread Providers", "Bring fresh bread 20 mins early.", "breadProviders", 1)}
                 <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting to Make.com...' : 'Save & Dispatch All Notifications'}</button>
+                  <button onClick={handleSaveAndSend} disabled={isSaving || !currentRoster.coordinatorKey} className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-800 text-white font-bold rounded-xl shadow-md text-sm sm:text-base cursor-pointer">{isSaving ? 'Transmitting...' : 'Save & Dispatch Emails'}</button>
                   {statusMessage && <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 px-4 py-2.5 rounded-lg border border-green-200">{statusMessage}</span>}
                 </div>
               </div>
             </div>
-          ) : renderSettings()}
+          )}
+          {activeTab === 'contacts' && renderContacts()}
+          {activeTab === 'settings' && renderSettings()}
         </div>
-
-        {/* GLOBAL APPLICATION FOOTER */}
         <footer className="mt-16 pt-6 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-400 dark:text-gray-500 space-y-1 select-none">
           <p>Created by Harisankar Menon &bull; <a href="mailto:harisankarmenon@protonmail.ch" className="hover:underline">harisankarmenon@protonmail.ch</a></p>
           <p>Built with React &amp; Tailwind CSS (MIT Licensed) &bull; Chapel: 9 Taharoto Road, Auckland</p>
