@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SACRAMENT ROSTER MANAGEMENT PORTAL (CLOUD NATIVE)
+ * SACRAMENT ROSTER MANAGEMENT PORTAL (CLOUD NATIVE - MULTI-TENANT)
  * ============================================================================
  * Author: Harisankar Menon
  * Contact: harisankarmenon@protonmail.ch
@@ -33,12 +33,12 @@ const getUpcomingSundays = () => {
 };
 
 const DEFAULT_LEADERSHIP = {
-  general: { wardName: 'YSA 2nd Ward, Takapuna', chapelAddress: '9 Taharoto Road, Auckland' },
-  bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
-  eqp: { name: 'Ryan', email: 'eqp@ward.org', phone: '555-0002' },
-  specialist: { name: 'Tech Specialist', email: 'harisankarmenon@protonmail.ch', phone: '555-0005' },
-  coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
-  coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
+  general: { wardName: 'New Ward', chapelAddress: '' },
+  bishop: { name: '', email: '', phone: '' },
+  eqp: { name: '', email: '', phone: '' },
+  specialist: { name: '', email: '', phone: '' },
+  coord1: { name: '', email: '', phone: '' },
+  coord2: { name: '', email: '', phone: '' }
 };
 
 export default function App() {
@@ -46,32 +46,42 @@ export default function App() {
   const [isCloudLoading, setIsCloudLoading] = useState(true);
   const [cloudSyncStatus, setCloudSyncStatus] = useState(null); 
 
+  // --- MULTI-TENANT AUTH STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(true); // Toggles between Login and Register
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
-  const [authError, setAuthError] = useState(false);
+  const [authError, setAuthError] = useState('');
+  
+  const [regWardName, setRegWardName] = useState('');
+  const [currentWardId, setCurrentWardId] = useState(null);
+  const [currentCredentials, setCurrentCredentials] = useState(null);
 
+  // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('roster'); 
   const [isDarkMode, setIsDarkMode] = useState(false);
-  
   const upcomingSundays = getUpcomingSundays();
   const [selectedDate, setSelectedDate] = useState(upcomingSundays[0]);
-
-  // CLOUD STATE DIRECTORIES
-  const [leadership, setLeadership] = useState(DEFAULT_LEADERSHIP);
-  const [contacts, setContacts] = useState([]);
-  const [rosterLedger, setRosterLedger] = useState({});
-  const [customEmailNotes, setCustomEmailNotes] = useState('');
-
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [settingsStatus, setSettingsStatus] = useState(null);
+  const [customEmailNotes, setCustomEmailNotes] = useState('');
+
+  // --- CLOUD MASTER DICTIONARIES (Holds ALL Wards) ---
+  const [leadershipMaster, setLeadershipMaster] = useState({});
+  const [contactsMaster, setContactsMaster] = useState({});
+  const [rosterMaster, setRosterMaster] = useState({});
+
+  // --- LOCAL TENANT STATE (Holds ONLY Current Logged-in Ward) ---
+  const [leadership, setLeadership] = useState(DEFAULT_LEADERSHIP);
+  const [contacts, setContacts] = useState([]);
+  const [rosterLedger, setRosterLedger] = useState({});
 
   const currentRoster = rosterLedger[selectedDate] || {
     coordinatorKey: '', preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: []
   };
 
-  // --- 1. BOOT SEQUENCE: LOAD FROM CLOUD ---
+  // --- 1. BOOT SEQUENCE & DATA MIGRATION ---
   useEffect(() => {
     const fetchCloudData = async () => {
       try {
@@ -84,29 +94,27 @@ export default function App() {
           try { return JSON.parse(val); } catch (e) { return null; }
         };
 
-        const parsedLeadership = parseSafe(data.leadership);
-        if (parsedLeadership) setLeadership(parsedLeadership);
+        let pLead = parseSafe(data.leadership) || {};
+        let pCont = parseSafe(data.contacts) || {};
+        let pRost = parseSafe(data.roster) || {};
 
-        const parsedContacts = parseSafe(data.contacts);
-        if (Array.isArray(parsedContacts)) setContacts(parsedContacts);
-        
-        const parsedRoster = parseSafe(data.roster);
-        if (parsedRoster && Object.keys(parsedRoster).length > 0) {
-          setRosterLedger(parsedRoster);
-        } else {
-          const defaultLedger = {};
-          upcomingSundays.forEach(dateStr => {
-            defaultLedger[dateStr] = {
-              coordinatorKey: '',
-              preparers: [{ name: '', email: '' }, { name: '', email: '' }],
-              administrators: [{ name: '', email: '' }, { name: '', email: '' }],
-              deliverers: [{ name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }, { name: '', email: '' }],
-              cleanup: [{ name: '', email: '' }, { name: '', email: '' }],
-              breadProviders: [{ name: '', email: '' }]
-            };
-          });
-          setRosterLedger(defaultLedger);
+        // 🛠️ MIGRATION RESCUE ENGINE: Detects old Takapuna format and wraps it in the new Multi-Tenant Dictionary
+        if (!pLead.sacrament && (pLead.bishop || pLead.general)) {
+          console.log("Legacy database detected. Migrating to Multi-Tenant Architecture...");
+          pLead = { 
+            sacrament: { 
+              credentials: { password: 'BishopClarkeIsCool' }, 
+              ...pLead 
+            } 
+          };
+          pCont = { sacrament: Array.isArray(pCont) ? pCont : [] };
+          pRost = { sacrament: pRost };
         }
+
+        setLeadershipMaster(pLead);
+        setContactsMaster(pCont);
+        setRosterMaster(pRost);
+
       } catch (err) {
         console.error("Cloud connection error, falling back to empty state:", err);
       } finally {
@@ -117,35 +125,75 @@ export default function App() {
     fetchCloudData();
   }, []); 
 
-  // --- 2. CLOUD SYNC ENGINE (WRITE) ---
-  const syncToCloud = async (showToast = true) => {
-    if (showToast) setCloudSyncStatus("Syncing...");
+  // --- AUTHENTICATION ENGINES ---
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    const wid = authUsername.trim().toLowerCase();
+    const tenantData = leadershipMaster[wid];
+
+    if (tenantData && tenantData.credentials?.password === authPassword) {
+      // Unpack Tenant Data
+      const { credentials, ...tenantLeadership } = tenantData;
+      
+      setCurrentWardId(wid);
+      setCurrentCredentials(credentials);
+      setLeadership(tenantLeadership || DEFAULT_LEADERSHIP);
+      setContacts(contactsMaster[wid] || []);
+      setRosterLedger(rosterMaster[wid] || {});
+      
+      setIsAuthenticated(true);
+      setAuthError('');
+    } else {
+      setAuthError("Invalid Username or Password.");
+    }
+  };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    const wid = authUsername.trim().toLowerCase();
+
+    if (leadershipMaster[wid]) {
+      setAuthError("Username already exists. Please choose another.");
+      return;
+    }
+    if (wid.length < 4 || authPassword.length < 5 || !regWardName.trim()) {
+      setAuthError("Please fill out all fields. Passwords must be 5+ characters.");
+      return;
+    }
+
+    // Build New Tenant
+    const newLeadership = { ...DEFAULT_LEADERSHIP, general: { wardName: regWardName, chapelAddress: '' } };
     
-    let harvestedContacts = [...contacts];
-    Object.values(rosterLedger).forEach(day => {
-      ['preparers', 'administrators', 'deliverers', 'cleanup', 'breadProviders'].forEach(cat => {
-        (day[cat] || []).forEach(person => {
-          const n = person.name?.trim();
-          const e = person.email?.trim();
-          if (n && n.length > 1 && isValidEmail(e)) {
-            const existingIdx = harvestedContacts.findIndex(c => c.name.toLowerCase() === n.toLowerCase());
-            if (existingIdx >= 0) {
-              harvestedContacts[existingIdx].email = e; 
-            } else {
-              harvestedContacts.push({ name: n, email: e }); 
-            }
-          }
-        });
-      });
-    });
+    const updatedLeadMaster = { ...leadershipMaster, [wid]: { credentials: { password: authPassword }, ...newLeadership } };
+    const updatedContMaster = { ...contactsMaster, [wid]: [] };
+    const updatedRostMaster = { ...rosterMaster, [wid]: {} };
 
-    setContacts(harvestedContacts); 
+    // Update States
+    setLeadershipMaster(updatedLeadMaster);
+    setContactsMaster(updatedContMaster);
+    setRosterMaster(updatedRostMaster);
+    
+    setCurrentWardId(wid);
+    setCurrentCredentials({ password: authPassword });
+    setLeadership(newLeadership);
+    setContacts([]);
+    setRosterLedger({});
+    
+    setIsAuthenticated(true);
+    setAuthError('');
 
+    // Force Immediate Cloud Sync to cement the new Ward in Google Sheets
+    await performCloudSync(updatedLeadMaster, updatedContMaster, updatedRostMaster, false);
+  };
+
+  // --- 2. CLOUD SYNC ENGINE (WRITE) ---
+  const performCloudSync = async (masterLead, masterCont, masterRost, showToast = true) => {
+    if (showToast) setCloudSyncStatus("Syncing...");
     try {
       const payload = {
-        leadership: JSON.stringify(leadership),
-        contacts: JSON.stringify(harvestedContacts), 
-        roster: JSON.stringify(rosterLedger)
+        leadership: JSON.stringify(masterLead),
+        contacts: JSON.stringify(masterCont),
+        roster: JSON.stringify(masterRost)
       };
 
       await fetch(SAVE_WEBHOOK_URL, {
@@ -163,6 +211,44 @@ export default function App() {
       console.error(err);
     }
   };
+
+  const syncToCloud = async (showToast = true) => {
+    // 1. Harvest Contacts
+    let harvestedContacts = [...contacts];
+    Object.values(rosterLedger).forEach(day => {
+      ['preparers', 'administrators', 'deliverers', 'cleanup', 'breadProviders'].forEach(cat => {
+        (day[cat] || []).forEach(person => {
+          const n = person.name?.trim();
+          const e = person.email?.trim();
+          if (n && n.length > 1 && isValidEmail(e)) {
+            const existingIdx = harvestedContacts.findIndex(c => c.name.toLowerCase() === n.toLowerCase());
+            if (existingIdx >= 0) {
+              harvestedContacts[existingIdx].email = e; 
+            } else {
+              harvestedContacts.push({ name: n, email: e }); 
+            }
+          }
+        });
+      });
+    });
+    setContacts(harvestedContacts); 
+
+    // 2. Repackage into Master Dictionaries
+    const updatedLeadMaster = { 
+      ...leadershipMaster, 
+      [currentWardId]: { credentials: currentCredentials, ...leadership } 
+    };
+    const updatedContMaster = { ...contactsMaster, [currentWardId]: harvestedContacts };
+    const updatedRostMaster = { ...rosterMaster, [currentWardId]: rosterLedger };
+
+    setLeadershipMaster(updatedLeadMaster);
+    setContactsMaster(updatedContMaster);
+    setRosterMaster(updatedRostMaster);
+
+    // 3. Dispatch to Make.com
+    await performCloudSync(updatedLeadMaster, updatedContMaster, updatedRostMaster, showToast);
+  };
+
 
   useEffect(() => {
     if (window.tailwind) { setIsStyleEngineReady(true); return; }
@@ -183,16 +269,6 @@ export default function App() {
   }, [isDarkMode]);
 
   useEffect(() => setStatusMessage(null), [selectedDate, activeTab]);
-
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    if (authUsername.trim().toLowerCase() === 'sacrament' && authPassword === 'BishopClarkeIsCool') {
-      setIsAuthenticated(true);
-      setAuthError(false);
-    } else {
-      setAuthError(true);
-    }
-  };
 
   const handleLeadershipChange = (role, field, value) => {
     setLeadership(prev => ({ ...prev, [role]: { ...(prev[role] || {}), [field]: value } }));
@@ -231,7 +307,6 @@ export default function App() {
     setRosterLedger(prev => {
       const dayData = prev[selectedDate] || { preparers: [], administrators: [], deliverers: [], cleanup: [], breadProviders: [] };
       const updatedList = [...(dayData[category] || [])];
-      
       updatedList[index] = { ...updatedList[index], [field]: value };
 
       if (field === 'name' && value.trim().length > 1) {
@@ -240,7 +315,6 @@ export default function App() {
           updatedList[index].email = match.email;
         }
       }
-
       return { ...prev, [selectedDate]: { ...dayData, [category]: updatedList } };
     });
   };
@@ -316,7 +390,6 @@ export default function App() {
 
     const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p>${customNotesHtml}<h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">5. Bread Provider</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validBreadProviders)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
 
-    // 🛠️ DIGEST EMAIL LIST: Now includes the EQP instead of the Clerk
     const digestRecipients = [leadership.bishop?.email, leadership.eqp?.email, leadership.specialist?.email, leadership.coord1?.email].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
     const uniqueDigestRecipients = [...new Set(digestRecipients)];
 
@@ -428,7 +501,6 @@ export default function App() {
 
           <div className="space-y-4 sm:space-y-6">
             <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Leadership & Administration</h3>
-            {/* 🛠️ RENDER SETTINGS: EQP replaced Clerk here */}
             {['bishop', 'eqp', 'specialist'].map(role => (
               <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">
@@ -460,29 +532,58 @@ export default function App() {
   // --- CLOAK & AUTH GATEWAYS ---
   if (!isStyleEngineReady) return <div style={{ backgroundColor: '#020617', width: '100vw', height: '100vh', margin: 0, padding: 0 }} />;
 
+  if (isCloudLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-300 font-medium">Fetching database from Google Sheets...</p>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden select-none">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
         <div className="max-w-sm w-full bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 text-white">
-          <div className="text-center mb-8"><div className="w-14 h-14 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">🍞</div><h1 className="text-xl font-bold tracking-tight text-slate-100">Sacrament Roster</h1><p className="text-xs text-slate-400 mt-1 font-medium">Authorized Access Only</p></div>
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div><label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Username</label><input type="text" value={authUsername} onChange={(e) => { setAuthUsername(e.target.value); setAuthError(false); }} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" autoFocus /></div>
-            <div><label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Password</label><input type="password" value={authPassword} onChange={(e) => { setAuthPassword(e.target.value); setAuthError(false); }} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" /></div>
-            {authError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2.5 text-red-400 text-xs font-semibold"><span>⚠️</span> Unauthorized ward credentials.</div>}
-            <button type="submit" className="w-full py-3.5 px-4 mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/25 transition duration-150 cursor-pointer text-sm">Verify & Unlock</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">🍞</div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-100">Sacrament Roster</h1>
+            <p className="text-xs text-slate-400 mt-1 font-medium">{isLoginMode ? "Authorized Access Only" : "Register New Ward"}</p>
+          </div>
 
-  if (isCloudLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-600 dark:text-gray-300 font-medium">Fetching database from Google Sheets...</p>
+          <form onSubmit={isLoginMode ? handleLoginSubmit : handleRegisterSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Ward ID (Username)</label>
+              <input type="text" value={authUsername} onChange={(e) => { setAuthUsername(e.target.value); setAuthError(''); }} placeholder={isLoginMode ? "e.g. sacrament" : "e.g. auckland1"} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" autoFocus />
+            </div>
+            
+            {!isLoginMode && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Official Ward Name</label>
+                <input type="text" value={regWardName} onChange={(e) => { setRegWardName(e.target.value); setAuthError(''); }} placeholder="e.g. Auckland 1st Ward" className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 ml-1">Password</label>
+              <input type="password" value={authPassword} onChange={(e) => { setAuthPassword(e.target.value); setAuthError(''); }} className="w-full px-4 py-3 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition text-sm font-medium" />
+            </div>
+
+            {authError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2.5 text-red-400 text-xs font-semibold leading-relaxed"><span>⚠️</span> {authError}</div>}
+            
+            <button type="submit" className="w-full py-3.5 px-4 mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/25 transition duration-150 cursor-pointer text-sm">
+              {isLoginMode ? 'Verify & Unlock' : 'Create Ward & Login'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center border-t border-slate-800 pt-5">
+            <button onClick={() => { setIsLoginMode(!isLoginMode); setAuthError(''); setAuthUsername(''); setAuthPassword(''); }} className="text-xs text-blue-400 hover:text-blue-300 font-semibold cursor-pointer">
+              {isLoginMode ? "Need to setup a new ward? Register here." : "Already have a Ward ID? Log in."}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -509,7 +610,7 @@ export default function App() {
                 <button onClick={() => syncToCloud(true)} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-700 rounded-md transition flex items-center gap-2">☁️ Sync to Cloud</button>
                 {cloudSyncStatus && <span className={`px-3 py-1.5 text-xs font-bold rounded-md ml-2 ${cloudSyncStatus.includes('Failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{cloudSyncStatus}</span>}
               </div>
-              <button onClick={() => setIsAuthenticated(false)} className="px-4 py-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 hover:bg-red-100 font-medium text-sm transition">🔒 Lock</button>
+              <button onClick={() => { setIsAuthenticated(false); setAuthPassword(''); }} className="px-4 py-2.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 hover:bg-red-100 font-medium text-sm transition">🔒 Lock</button>
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-sm hover:bg-gray-50 font-medium text-sm">{isDarkMode ? '☀️' : '🌙'}</button>
             </div>
           </header>
