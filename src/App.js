@@ -35,7 +35,7 @@ const getUpcomingSundays = () => {
 const DEFAULT_LEADERSHIP = {
   general: { wardName: 'YSA 2nd Ward, Takapuna', chapelAddress: '9 Taharoto Road, Auckland' },
   bishop: { name: 'Bishop Clarke', email: 'bishop@ward.org', phone: '555-0001' },
-  clerk: { name: 'Ryan', email: 'clerk@ward.org', phone: '555-0002' },
+  eqp: { name: 'Ryan', email: 'eqp@ward.org', phone: '555-0002' },
   specialist: { name: 'Tech Specialist', email: 'harisankarmenon@protonmail.ch', phone: '555-0005' },
   coord1: { name: 'Moroni', email: 'moroni@ward.org', phone: '555-0003' },
   coord2: { name: 'Hari', email: 'hari@ward.org', phone: '555-0004' }
@@ -61,7 +61,7 @@ export default function App() {
   const [leadership, setLeadership] = useState(DEFAULT_LEADERSHIP);
   const [contacts, setContacts] = useState([]);
   const [rosterLedger, setRosterLedger] = useState({});
-  const [customEmailNotes, setCustomEmailNotes] = useState(''); // NEW: Custom Email Notes State
+  const [customEmailNotes, setCustomEmailNotes] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
@@ -121,7 +121,6 @@ export default function App() {
   const syncToCloud = async (showToast = true) => {
     if (showToast) setCloudSyncStatus("Syncing...");
     
-    // HARVEST FINISHED CONTACTS ONLY ON SYNC
     let harvestedContacts = [...contacts];
     Object.values(rosterLedger).forEach(day => {
       ['preparers', 'administrators', 'deliverers', 'cleanup', 'breadProviders'].forEach(cat => {
@@ -196,7 +195,6 @@ export default function App() {
   };
 
   const handleLeadershipChange = (role, field, value) => {
-    // We add (prev[role] || {}) to ensure it doesn't crash if adding a new general category to an old DB
     setLeadership(prev => ({ ...prev, [role]: { ...(prev[role] || {}), [field]: value } }));
     setSettingsStatus(null);
   };
@@ -288,7 +286,6 @@ export default function App() {
       <p style="font-size: 13px; color: #6b7280; margin: 0;">📞 ${activeCoordinator?.phone || 'N/A'} &nbsp;|&nbsp; ✉️ <a href="mailto:${activeCoordinator?.email || ''}" style="color: #2563eb;">${activeCoordinator?.email || 'N/A'}</a></p>
     `;
 
-    // INJECT CUSTOM NOTES
     const customNotesHtml = customEmailNotes.trim() ? `
       <div style="background-color: #f3f4f6; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 20px 0; border-radius: 0 4px 4px 0;">
         <p style="margin: 0; color: #1e3a8a; font-size: 14px;"><strong>📝 Additional Notes:</strong><br/><br/>${customEmailNotes.replace(/\n/g, '<br/>')}</p>
@@ -319,7 +316,8 @@ export default function App() {
 
     const summaryHtmlBody = `<div style="font-family: sans-serif; color: #1f2937; max-width: 650px;">${htmlPreHeader}<h2 style="color: #1e3a8a; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Sacrament Master Roster</h2><p style="font-size: 15px;"><strong>Date:</strong> ${formattedDate}<br/><strong>Coordinator in Charge:</strong> ${activeCoordinator?.name || 'None Assigned'}</p>${customNotesHtml}<h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px; tracking: wider;">1. Sacrament Preparers</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validPreparers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">2. Sacrament Administrators (Blessing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validAdmins)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">3. Sacrament Deliverers (Passing)</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validDeliverers)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">4. Post-Sacrament Clean-up</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validCleanup)}</ul><h4 style="color: #4b5563; margin: 20px 0 4px 0; text-transform: uppercase; font-size: 12px;">5. Bread Provider</h4><ul style="margin: 0 0 16px 0; padding-left: 20px;">${renderHtmlList(validBreadProviders)}</ul><p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">Automated calendar instructions and arrival reminders have been safely dispatched to all verified participants listed above.</p></div>`;
 
-    const digestRecipients = [leadership.bishop?.email, leadership.clerk?.email, leadership.specialist?.email, leadership.coord1?.email].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
+    // 🛠️ DIGEST EMAIL LIST: Now includes the EQP instead of the Clerk
+    const digestRecipients = [leadership.bishop?.email, leadership.eqp?.email, leadership.specialist?.email, leadership.coord1?.email].map(e => e?.trim().toLowerCase()).filter(isValidEmail);
     const uniqueDigestRecipients = [...new Set(digestRecipients)];
 
     uniqueDigestRecipients.forEach(leaderEmail => {
@@ -342,7 +340,7 @@ export default function App() {
         await new Promise(resolve => setTimeout(resolve, 150));
       }
       setStatusMessage(`Success! Dispatched ${successCount} emails via Brevo.`);
-      setCustomEmailNotes(''); // Optional: clear notes after sending
+      setCustomEmailNotes(''); 
     } catch (error) {
       console.error("Network Dispatch Error:", error);
       setStatusMessage('Error: Could not reach Make.com. Check internet connection.');
@@ -430,9 +428,12 @@ export default function App() {
 
           <div className="space-y-4 sm:space-y-6">
             <h3 className="font-semibold text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-2">Leadership & Administration</h3>
-            {['bishop', 'clerk', 'specialist'].map(role => (
+            {/* 🛠️ RENDER SETTINGS: EQP replaced Clerk here */}
+            {['bishop', 'eqp', 'specialist'].map(role => (
               <div key={role} className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">{role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role} NAME</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                  {role === 'specialist' ? 'TECH SPECIALIST (YOU)' : role === 'eqp' ? 'ELDERS QUORUM PRESIDENT' : role} NAME
+                </label>
                 <input value={leadership[role]?.name || ''} onChange={e => handleLeadershipChange(role, 'name', e.target.value)} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"><input value={leadership[role]?.email || ''} onChange={e => handleLeadershipChange(role, 'email', e.target.value)} placeholder="Email" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /><input value={leadership[role]?.phone || ''} onChange={e => handleLeadershipChange(role, 'phone', e.target.value)} placeholder="Phone" className="p-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-blue-500" /></div>
               </div>
@@ -537,7 +538,6 @@ export default function App() {
                 {renderAssignmentSection("4. Post-Sacrament Clean-up", "Return immediately after meeting.", "cleanup", 2)}
                 {renderAssignmentSection("5. Bread Providers", "Bring fresh bread 20 mins early.", "breadProviders", 1)}
                 
-                {/* 📝 NEW CUSTOM EMAIL NOTES SECTION */}
                 <div className="mb-6 p-4 sm:p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                   <label className="block text-sm font-semibold text-gray-900 dark:text-gray-200 mb-2">Custom Email Notes (Optional)</label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Add a special message, testimony, or extra instructions. This will be included in every email sent.</p>
